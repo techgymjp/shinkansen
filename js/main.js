@@ -473,6 +473,7 @@ function stepRun(dt) {
     if (t >= 1) { P.lat = ch.toSign * LANE_OFF; P.changing = null; sound.clack(); }
   }
   traffic.update(dt, P.km);
+  if (!P.changing && !P.pending) traffic.ensureEscape(P.km, P.v, P.lat);
   for (const e of traffic.passEvents(P.km, P.lat)) {
     sound.passBy();
     if (e === 'same') P.passed++;

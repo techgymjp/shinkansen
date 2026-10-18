@@ -116,6 +116,25 @@ export class Traffic {
     this.scene.add(c.mesh);
     this._placeCross(c);
     this.crossovers.push(c);
+    this.crossovers.sort((p, q) => p.km - q.km);
+  }
+
+  // 「タイミングよく現れる」ポイント: このままでは衝突する場合、手前に渡り線を出す
+  ensureEscape(km, v, lat) {
+    const sign = Math.sign(lat) || 1;
+    const ln = this.nearestOnLane(km, sign);
+    if (!ln) return;
+    const t = ln.train;
+    const closing = (t.dir < 0 ? v + 300 : v - 300) / 3600; // km/s
+    if (closing <= 0) return;
+    // 自分が衝突地点までに進む距離
+    const reach = ln.dist * (v / 3600) / closing;
+    if (reach < 0.7 || reach > 8) return;
+    const c = this.crossovers.find((x) => x.km > km + 0.25);
+    if (c && c.km < km + reach - 0.35) return;
+    const at = km + Math.max(0.4, Math.min(reach - 0.45, reach * 0.55));
+    if (this.crossovers.some((x) => Math.abs(x.km - at) < 0.25)) return;
+    this._addCross(at);
   }
   _placeCross(c) {
     const o = this.world.origin;
@@ -165,8 +184,8 @@ export class Traffic {
     while (this.nextCross < km + 12) {
       const k = this.nextCross;
       const nearSt = STATIONS.some((s) => k > s.km - 0.45 && k < s.km + 0.35);
-      if (!nearSt && k < this.goalKm - 0.5) this._addCross(k);
-      this.nextCross += 0.9 + r() * 1.3;
+      if (!nearSt && k < this.goalKm - 0.5 && !this.crossovers.some((x) => Math.abs(x.km - k) < 0.3)) this._addCross(k);
+      this.nextCross += 0.8 + r() * 1.0;
     }
     // 破棄
     this.trains = this.trains.filter((t) => {

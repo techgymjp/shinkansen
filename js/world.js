@@ -130,7 +130,7 @@ function assets() {
   roofG.translate(0, 0.5, 0);
   G.roofGeo = roofG;
   G.treeGeo = new THREE.IcosahedronGeometry(1, 0).translate(0, 1, 0);
-  G.coneTreeGeo = new THREE.ConeGeometry(1, 2.6, 6).translate(0, 1.3, 0);
+  G.coneTreeGeo = new THREE.ConeGeometry(0.55, 2.4, 6).translate(0, 1.2, 0);
   G.treeMat = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true });
   G.houseMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
   G.bldMat = new THREE.MeshLambertMaterial({ color: 0xffffff, map: buildingTex() });
@@ -147,7 +147,7 @@ function assets() {
   G.poleGeoR = G.poleGeoL.clone().scale(-1, 1, 1);
   G.poleGeoR.computeVertexNormals();
   G.pierGeo = new THREE.BoxGeometry(5.5, 1, 1.8).translate(0, 0.5, 0);
-  G.lampGeo = new THREE.BoxGeometry(0.25, 0.25, 1.2);
+  G.lampGeo = new THREE.BoxGeometry(0.15, 0.2, 0.7);
   return G;
 }
 
@@ -164,9 +164,9 @@ const COL = {
 function waterSideAt(waters, km, off) {
   for (const w of waters) {
     if (km < w[0] || km > w[1]) continue;
-    if (w[2] === 'B' && Math.abs(off) > 70) return true;
-    if (w[2] === 'L' && off > 90) return true;
-    if (w[2] === 'R' && off < -90) return true;
+    if (w[2] === 'B' && Math.abs(off) >= 70) return true;
+    if (w[2] === 'L' && off >= 85) return true;
+    if (w[2] === 'R' && off <= -85) return true;
   }
   return false;
 }
@@ -179,7 +179,8 @@ export const PLACED_LANDMARKS = LANDMARKS.filter((l) => l.type !== 'river' && l.
   if (SMALL_TYPES.has(l.type)) {
     const sgn = off === 0 ? 1 : Math.sign(off);
     const minOff = l.type === 'kofun' ? 260 : 90;
-    off = sgn * Math.min(1400, Math.max(minOff, Math.abs(off)));
+    const maxOff = l.type === 'kofun' ? 650 : l.type === 'tower' ? 1400 : 600;
+    off = sgn * Math.min(maxOff, Math.max(minOff, Math.abs(off)));
   }
   return { ...l, off, foot: FOOTPRINT[l.type] || 0 };
 });
@@ -256,7 +257,7 @@ function buildChunk(index) {
   // 盛土 (低いところ)
   const emb = sweep(S, (s) => {
     const h = s.h;
-    const top = Math.min(h, 2.2);
+    const top = Math.min(h, 2.2) - 0.12;
     return [[6.3 + top * 1.6, -0.3], [6.3, top], [-6.3, top], [-6.3 - top * 1.6, -0.3]];
   }, base);
   grp.add(new THREE.Mesh(emb, snow ? mat(COL.snow, { side: THREE.DoubleSide }) : G.ballast));
@@ -366,12 +367,12 @@ function buildChunk(index) {
     if (tb > ta) {
       const ST = samplesBetween(ta, tb, 0.02);
       const arc = [];
-      arc.push([6.8, -0.5]);
+      arc.push([5.8, 0.03], [6.8, 0.03]);
       for (let k = 0; k <= 12; k++) {
         const th = (k / 12) * Math.PI;
         arc.push([Math.cos(th) * 6.8, 2.2 + Math.sin(th) * 6.6]);
       }
-      arc.push([-6.8, -0.5]);
+      arc.push([-6.8, 0.03], [-5.8, 0.03]);
       grp.add(new THREE.Mesh(sweep(ST, (s) => arc.map(([o, y]) => [o, y + s.h]), base), G.tunnel));
       const lamps = [];
       for (let km = Math.ceil(ta / 0.04) * 0.04; km < tb; km += 0.04) {
@@ -424,6 +425,7 @@ function buildChunk(index) {
     for (const [ck, H, R] of cones) {
       if (ck < a || ck >= b) continue;
       const s = sample(ck);
+      s.h = 0; // トンネル内の線路は地表高
       const g = new THREE.ConeGeometry(R, H, 18, 1, true);
       g.translate(0, H / 2 - 0.5 + s.h, 0);
       const m = new THREE.Mesh(g, snow ? G.hillMatSnow : G.hillMat);
@@ -502,6 +504,13 @@ function buildChunk(index) {
     if (nearTunnel(km, 0.45)) return true;
     return waterSideAt(waters, km, off);
   };
+  // 名所と線路の間に高い建物を建てない
+  const blocksView = (km, off) => {
+    for (const l of lms) {
+      if (Math.abs(km - l.km) < 0.45 && Math.sign(off) === Math.sign(l.off) && Math.abs(off) < Math.abs(l.off) + l.foot) return true;
+    }
+    return false;
+  };
   const putAt = (km, off) => {
     const s = sample(km);
     return [s.x + s.lx * off - base.x, s.z + s.lz * off - base.z, yawOf(s)];
@@ -517,14 +526,14 @@ function buildChunk(index) {
     houses.push([x, 0, z, yaw + (r() < 0.3 ? Math.PI / 2 : 0), w, h, d]);
     roofs.push([x, h, z, houses[houses.length - 1][3], w, 2.4 + r(), d]);
   }
-  const localDens = dens + (station ? 10 : 0);
+  const localDens = dens + (station ? Math.min(10, dens * 0.6) : 0);
   if (localDens > 7) {
     const nB = Math.min(220, Math.round((localDens - 7) * 9));
     for (let i = 0; i < nB; i++) {
       const km = a + r() * CHUNK_KM;
       const side = r() < 0.5 ? 1 : -1;
       const off = side * (22 + r() ** 1.3 * 1100);
-      if (tooClose(km, off)) continue;
+      if (tooClose(km, off) || blocksView(km, off)) continue;
       const [x, z, yaw] = putAt(km, off);
       let h = 10 + r() ** 2.2 * (localDens * 4 + (station && Math.abs(km - station.km) < 0.6 ? 90 : 10));
       if (km > 470 && km < 483) h = Math.min(h, 31); // 京都市の高さ規制
@@ -671,7 +680,7 @@ function landmarkObject(l) {
       g.add(c);
       return { obj: g, range: [25, 10] };
     }
-    case 'castle': return { obj: makeCastle(l.name.includes('姫路') ? 1.5 : 1.2, l.name.includes('岡山')), range: [9, 3] };
+    case 'castle': return { obj: makeCastle(l.name.includes('姫路') ? 2.0 : 1.3, l.name.includes('岡山')), range: [9, 3] };
     case 'pagoda': return { obj: makePagoda(l.name.includes('東寺') ? 55 : 34), range: [8, 3] };
     case 'temple': return { obj: makeTemple(1.4), range: [7, 3] };
     case 'kofun': return { obj: makeKofun(l.name.includes('造山') ? 350 : l.name.includes('今城塚') ? 190 : l.name.includes('両宮山') ? 206 : l.name.includes('作山') ? 286 : l.name.includes('太田茶臼山') ? 226 : 150), range: [7, 3] };
