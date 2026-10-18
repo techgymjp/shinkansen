@@ -609,11 +609,38 @@ function finish() {
     if (P.booms === 0) lines.push(newC ? '★ 無事故部門 記録更新!' : recC ? `無事故部門 記録: ${fmtTime(recC.time)}` : '');
     else lines.push('無事故部門は大爆発0回で記録されます');
     $('res-record').innerHTML = lines.filter(Boolean).map((l) => `<div>${l}</div>`).join('');
+    setupShare(st.name, total);
     $('result').hidden = false;
     $('hud').hidden = true;
     $('touch').hidden = true;
   }, 2500);
 }
+
+// ---------------- 結果のシェア ----------------
+const SHARE_URL = 'https://techgym.jp/column/claude-code-game-shinkansen/';
+let shareText = '';
+function setupShare(goalName, total) {
+  const from = STATIONS[course.from].name;
+  const boom = P.booms === 0 ? '大爆発ゼロの無事故運転' : `大爆発${P.booms}回`;
+  shareText = `暴走新幹線で${from}→${goalName}（${(course.goalKm - course.startKm).toFixed(1)}km）を${fmtTime(total)}で走破！${boom}、最高${Math.round(P.maxV)}km/h #暴走新幹線`;
+  const t = encodeURIComponent(shareText), u = encodeURIComponent(SHARE_URL);
+  $('share-x').href = `https://twitter.com/intent/tweet?text=${t}&url=${u}`;
+  $('share-line').href = `https://social-plugins.line.me/lineit/share?url=${u}&text=${t}`;
+  $('share-fb').href = `https://www.facebook.com/sharer/sharer.php?u=${u}`;
+  $('share-text').value = `${shareText} ${SHARE_URL}`;
+  $('share-native').hidden = !navigator.share;
+  $('share-copy').textContent = 'リンクをコピー';
+}
+$('share-native').addEventListener('click', () => {
+  navigator.share({ title: '暴走新幹線', text: shareText, url: SHARE_URL }).catch(() => {});
+});
+$('share-copy').addEventListener('click', () => {
+  const text = $('share-text').value;
+  const done = () => { $('share-copy').textContent = 'コピーしました'; };
+  const fallback = () => { $('share-text').select(); try { document.execCommand('copy'); done(); } catch { $('share-copy').textContent = '文章を選択しました'; } };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+  else fallback();
+});
 
 // ---------------- カメラ ----------------
 const lookTarget = new THREE.Vector3();
