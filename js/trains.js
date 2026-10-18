@@ -167,9 +167,75 @@ export class Traffic {
     return best ? { train: best, dist: bd } : null;
   }
 
+  // 自列車の状態 (P) を登録する。対向列車の運行管理に使う
+  setPlayer(p) { this.player = p; }
+
+  // 前方ののぞみを追い抜くとき上り線を使う時間帯 [開始秒, 終了秒] を見積もる (速度 v km/h 一定と仮定)
+  _passWindows(km, v, insertReturn) {
+    const vs = v / 3600, vr = (v - NOZOMI_KMH) / 3600;
+    if (vr <= 0) return [];
+    const ahead = this.trains
+      .filter((t) => t.dir > 0 && t.s > km - 0.02 && t.s - TRAIN_KM < km + 22)
+      .sort((a, b) => a.s - b.s)
+      .slice(0, 4);
+    const wins = [];
+    for (const n of ahead) {
+      const tIn = Math.max(0, (n.s - TRAIN_KM - 0.25 - km) / vr);
+      const tClear = (n.s + 0.05 - km) / vr;
+      if (tClear > 900) continue;
+      const clearPos = km + vs * tClear;
+      let back = this.crossovers.find((c) => c.km >= clearPos && c.km < clearPos + 1.0);
+      // 追い抜き終わった直後に戻れるポイントを用意する
+      if (!back && insertReturn && clearPos < km + 12 && clearPos < this.goalKm - 0.5) {
+        const at = Math.max(clearPos + 0.1, km + 0.4);
+        if (!this.crossovers.some((x) => Math.abs(x.km - at) < 0.25)) this._addCross(at);
+        back = this.crossovers.find((c) => c.km >= clearPos && c.km < clearPos + 1.0);
+      }
+      const endKm = back ? back.km + back.len : clearPos + 1.4;
+      wins.push({ a: tIn - 2, b: (endKm - km) / vs + 3, endKm, n });
+    }
+    return wins;
+  }
+
+  // 対向列車が自列車とすれ違う時刻 (秒)
+  static meetTime(km, pos, v) { return (pos - km) / (v / 3600 + NOZOMI_KMH / 3600); }
+
+  // この位置に対向列車を出すと、追い抜き中にすれ違う恐れがあるか (加速の仕方が変わっても安全なよう複数の速度で確かめる)
+  _oncomingConflicts(km, pos) {
+    const v0 = Math.max(this.player ? this.player.v : 0, NOZOMI_KMH + 1);
+    for (const v of [v0, v0 + (603 - v0) / 3, v0 + (603 - v0) * 2 / 3, 603]) {
+      const tm = Traffic.meetTime(km, pos, v);
+      if (this._passWindows(km, v, false).some((w) => tm >= w.a && tm <= w.b)) return true;
+    }
+    return false;
+  }
+
+  // 運行管理: 追い抜き中に対向列車が来る場合、戻り地点より先の信号で抑止する
+  _dispatch(km) {
+    const P = this.player;
+    const onc = this.trains.filter((t) => t.dir < 0).sort((a, b) => a.s - b.s);
+    if (!P) return;
+    const goingUp = P.changing ? P.changing.toSign < 0 : P.pending ? P.pending.toSign < 0 : P.lat < 0;
+    const wins = P.v > NOZOMI_KMH ? this._passWindows(km, P.v, true) : [];
+    const active = goingUp ? wins.filter((w) => w.a <= 0.5) : [];
+    let prev = null;
+    for (const o of onc) {
+      let hold = false;
+      for (const w of active) {
+        const tm = Traffic.meetTime(km, o.s, P.v);
+        if (tm >= w.a && tm <= w.b && (o.held || o.s > w.endKm + 0.6)) hold = true;
+      }
+      // 抑止中の列車の後続も詰めて止める
+      if (prev && prev.held && o.s - prev.s < TRAIN_KM + 1.2) hold = true;
+      o.held = hold;
+      prev = o;
+    }
+  }
+
   update(dt, km, camPos) {
     const r = this.r;
-    for (const t of this.trains) t.s += t.v * dt;
+    this._dispatch(km);
+    for (const t of this.trains) t.s += (t.held ? 0 : t.v) * dt;
     // 生成
     while (this.nextSame < km + 22) {
       if (this.nextSame < this.goalKm + 1) this._spawn(1, this.nextSame);
@@ -178,6 +244,7 @@ export class Traffic {
     // 対向列車は前方の見えない所から生成
     if (this.nextOnc < km + 6) this.nextOnc = km + 6 + r() * 2;
     while (this.nextOnc < km + 22) {
+      if (this._oncomingConflicts(km, this.nextOnc)) { this.nextOnc += 0.5; continue; }
       if (this.nextOnc < TOTAL_KM - 0.3) this._spawn(-1, this.nextOnc);
       this.nextOnc += 3.2 + r() * 6;
     }
@@ -262,6 +329,7 @@ export class Traffic {
       return !kill;
     });
     if (this.nextOnc < km + 7) this.nextOnc = km + 7;
+    for (const t of this.trains) t.held = false;
   }
 
   // すれ違い・追い越しイベント (効果音用)

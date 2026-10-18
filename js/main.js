@@ -103,12 +103,19 @@ STATIONS.forEach((s, i) => {
 });
 selFrom.value = 0;
 selTo.value = STATIONS.length - 1;
-const recordKey = () => `bousou:${selFrom.value}-${selTo.value}:x${$('sel-scale').value}`;
+// 記録は2部門: タイム部門 (大爆発1回につき +3分) と 無事故部門 (大爆発0回のみ)
+const PENALTY_SEC = 180;
+const totalTime = () => P.time + P.booms * PENALTY_SEC;
+const recordKey = (cat) => `bousou2:${selFrom.value}-${selTo.value}:x${$('sel-scale').value}:${cat}`;
+function readRecord(cat) {
+  try { return JSON.parse(localStorage.getItem(recordKey(cat)) || 'null'); } catch { return null; }
+}
 function loadBest() {
-  try {
-    const r = JSON.parse(localStorage.getItem(recordKey()) || 'null');
-    $('best').textContent = r ? `この区間の最速記録: ${fmtTime(r.time)}（大爆発 ${r.booms}回）` : '';
-  } catch { $('best').textContent = ''; }
+  const t = readRecord('time'), c = readRecord('clean');
+  const parts = [];
+  if (t) parts.push(`タイム部門 ${fmtTime(t.time)}（大爆発 ${t.booms}回）`);
+  if (c) parts.push(`無事故部門 ${fmtTime(c.time)}`);
+  $('best').textContent = parts.length ? 'この区間の記録: ' + parts.join('　') : '';
 }
 for (const el of [selFrom, selTo, $('sel-scale')]) el.addEventListener('change', loadBest);
 loadBest();
@@ -157,6 +164,7 @@ function startGame() {
   world.clear();
   const s = sample(P.km);
   world.setOrigin(s.x, s.z);
+  traffic.setPlayer(P);
   traffic.reset(P.km, course.goalKm);
   $('hud-course').textContent = `${STATIONS[from].name} → ${STATIONS[to].name}`;
   $('title').hidden = true;
@@ -355,7 +363,8 @@ function updateHud() {
   $('hud-remain').textContent = Math.max(0, course.goalKm - P.km).toFixed(1);
   const ns = nextStation(P.km);
   if (ns) { $('hud-next').textContent = ns.name; $('hud-nextd').textContent = (ns.km - P.km).toFixed(1) + 'km'; }
-  $('hud-time').textContent = fmtTime(P.time);
+  $('hud-time').textContent = fmtTime(totalTime());
+  $('hud-pen').textContent = P.booms ? `(+${P.booms * 3}分)` : '';
   const clock = 6 * 3600 + P.time;
   $('hud-clock').textContent = `${String(Math.floor(clock / 3600) % 24).padStart(2, '0')}:${String(Math.floor(clock / 60) % 60).padStart(2, '0')}`;
   $('hud-boom').textContent = P.booms;
@@ -448,10 +457,13 @@ function checkEvents(prev, cur) {
 // ---------------- 更新 ----------------
 const tmp = { };
 function accelRate(v) { return Math.max(3.5, 24 - v * 0.034); } // km/h/s
+// アクセルを離すと惰行でゆっくり減速する (ブレーキはない)
+function coastRate(v) { return 1.5 + v * 0.006; } // km/h/s
 
 function stepRun(dt) {
   P.accel = keys.has('ArrowUp') || keys.has('KeyW') || keys.has('Space') || touchAccel;
   if (P.accel) P.v = Math.min(MAX_KMH, P.v + accelRate(P.v) * dt);
+  else P.v = Math.max(0, P.v - coastRate(P.v) * dt);
   P.maxV = Math.max(P.maxV, P.v);
   const prev = P.km;
   P.km = Math.min(course.goalKm + 0.5, P.km + (P.v / 3600) * dt);
@@ -496,7 +508,7 @@ function crash(train) {
   traffic.clearAround(P.km);
   sound.explosion();
   $('crash').hidden = false;
-  $('crash-sub').textContent = `${P.booms}回目の大破　速度 ${Math.round(P.v)}km/h で衝突`;
+  $('crash-sub').textContent = `${P.booms}回目の大破　速度 ${Math.round(P.v)}km/h で衝突　ペナルティ +3:00`;
   $('flash').style.transition = 'none';
   $('flash').style.opacity = 1;
   requestAnimationFrame(() => { $('flash').style.transition = 'opacity 1.5s'; $('flash').style.opacity = 0; });
@@ -522,22 +534,31 @@ function finish() {
   state = 'finish';
   P.km = course.goalKm;
   const st = STATIONS[course.to];
-  telop(`${fmtTime(P.time)}　大爆発 ${P.booms}回`, `${st.name} 到着`, st.en);
+  telop(`${fmtTime(totalTime())}　大爆発 ${P.booms}回`, `${st.name} 到着`, st.en);
   sound.chime();
   sound.say(`${st.kana}に到着しました`);
-  let rec = null;
-  try { rec = JSON.parse(localStorage.getItem(recordKey()) || 'null'); } catch {}
   const debugRun = /[?&](start|speed)=/.test(location.search);
-  const better = !debugRun && (!rec || P.time < rec.time);
-  if (better) { try { localStorage.setItem(recordKey(), JSON.stringify({ time: P.time, booms: P.booms })); } catch {} }
+  const total = totalTime();
+  const recT = readRecord('time'), recC = readRecord('clean');
+  const newT = !debugRun && (!recT || total < recT.time);
+  const newC = !debugRun && P.booms === 0 && (!recC || P.time < recC.time);
+  try {
+    if (newT) localStorage.setItem(recordKey('time'), JSON.stringify({ time: total, booms: P.booms }));
+    if (newC) localStorage.setItem(recordKey('clean'), JSON.stringify({ time: P.time }));
+  } catch {}
   setTimeout(() => {
     $('res-title').textContent = `${st.name} 到着!`;
     $('res-course').textContent = `${STATIONS[course.from].name} → ${st.name}（${(course.goalKm - course.startKm).toFixed(1)}km）`;
-    $('res-time').textContent = fmtTime(P.time);
-    $('res-boom').textContent = `${P.booms} 回`;
+    $('res-run').textContent = fmtTime(P.time);
+    $('res-boom').textContent = `${P.booms} 回（+${fmtTime(P.booms * PENALTY_SEC)}）`;
+    $('res-time').textContent = fmtTime(total);
     $('res-pass').textContent = `${P.passed} 本`;
     $('res-max').textContent = `${Math.round(P.maxV)} km/h`;
-    $('res-record').textContent = better ? '★ 最速記録更新!' : rec ? `最速記録: ${fmtTime(rec.time)}` : '';
+    const lines = [];
+    lines.push(newT ? '★ タイム部門 記録更新!' : recT ? `タイム部門 記録: ${fmtTime(recT.time)}` : '');
+    if (P.booms === 0) lines.push(newC ? '★ 無事故部門 記録更新!' : recC ? `無事故部門 記録: ${fmtTime(recC.time)}` : '');
+    else lines.push('無事故部門は大爆発0回で記録されます');
+    $('res-record').innerHTML = lines.filter(Boolean).map((l) => `<div>${l}</div>`).join('');
     $('result').hidden = false;
     $('hud').hidden = true;
     $('touch').hidden = true;

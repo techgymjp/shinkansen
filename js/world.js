@@ -151,6 +151,21 @@ function assets() {
   return G;
 }
 
+// 山の裾野が線路にかからないか確かめる: 中心 (wx, wz) から線路中心線までの最短距離 (m)
+// 置いた地点では離れていても、線路が曲がって先で山にぶつかることがあるため前後を広く調べる
+export function trackClearance(wx, wz, kmCenter, spanKm) {
+  let best = Infinity;
+  const step = spanKm > 6 ? 0.2 : 0.1;
+  for (let km = Math.max(0, kmCenter - spanKm); km <= Math.min(TOTAL_KM, kmCenter + spanKm); km += step) {
+    const p = sample(km);
+    const d = Math.hypot(p.x - wx, p.z - wz);
+    if (d < best) best = d;
+  }
+  return best;
+}
+// 頂点のゆらぎ (最大 +12.5%) と線路脇の余裕を見込んだ必要距離
+const MOUNTAIN_MARGIN = (R) => R * 1.15 + 80;
+
 // ---------------- 地面の色 ----------------
 const COL = {
   field: [0x6f9a45, 0x7aa64c, 0x86ad55, 0x93b05a],
@@ -209,7 +224,8 @@ function buildChunk(index) {
   // --- 地面 ---
   const OFFS = [-4000, -2200, -1200, -650, -350, -180, -90, -40, -14, 14, 40, 90, 180, 350, 650, 1200, 2200, 4000];
   const S25 = S.filter((_, j) => j % 5 === 0 || j === S.length - 1);
-  const groundGeo = sweep(S25, (s) => OFFS.map((o) => [o, waterSideAt(waters, s.km, o) ? -0.6 : 0]), base, (s, k, off) => {
+  // 線路の真下は路盤と重ならないよう少し下げる
+  const groundGeo = sweep(S25, (s) => OFFS.map((o) => [o, waterSideAt(waters, s.km, o) ? -0.6 : Math.abs(o) <= 14 ? -0.15 : 0]), base, (s, k, off) => {
     if (waterSideAt(waters, s.km, off)) return COL.water;
     if (snow) return COL.snow;
     const d = density(s.km);
@@ -629,6 +645,7 @@ function buildChunk(index) {
       const km = a + r() * CHUNK_KM;
       if (waterSideAt(waters, km, off)) continue;
       const [x, z] = putAt(km, off);
+      if (trackClearance(x + base.x, z + base.z, km, ((Math.abs(off) + R * 1.2) / 1000) * 2 + 2) < MOUNTAIN_MARGIN(R)) continue;
       const m = makeMountain(H, R, index * 31 + i, snow ? 0xdde4ea : 0x45663d);
       m.position.set(x, -2, z);
       grp.add(m);
@@ -657,7 +674,10 @@ function buildFar(index) {
     if (waters.some((w) => w[2] === 'B' || (w[2] === 'L' && side > 0) || (w[2] === 'R' && side < 0))) continue;
     const s = sample(km);
     const H = 300 + r() * 900;
-    const m = makeMountain(H, H * (3 + r() * 2), index * 7 + i, 0x5b7360);
+    const R = H * (3 + r() * 2);
+    const wx = s.x + s.lx * side * dist, wz = s.z + s.lz * side * dist;
+    if (trackClearance(wx, wz, km, ((dist + R * 1.2) / 1000) * 2 + 2) < MOUNTAIN_MARGIN(R)) continue;
+    const m = makeMountain(H, R, index * 7 + i, 0x5b7360);
     m.position.set(s.x + s.lx * side * dist - base.x, -5, s.z + s.lz * side * dist - base.z);
     grp.add(m);
   }
@@ -710,6 +730,19 @@ export class World {
   _position(g) {
     const b = g.userData.base;
     g.position.set(b.x - this.origin.x, 0, b.z - this.origin.z);
+  }
+
+  // 山の名所が線路にかかる場合は縮小する (0 なら置かない)
+  _landmarkFit(l) {
+    const R = l.type === 'fuji' ? 19400 : l.type === 'mountaincastle' ? 1100
+      : l.type === 'mountain' ? (l.name.includes('伊吹') ? 1377 : l.name.includes('箱根') ? 1438 : l.name.includes('愛鷹') ? 850 : 432) * 3.2 : 0;
+    if (!R) return 1;
+    const s = sample(l.km);
+    const d = trackClearance(s.x + s.lx * l.off, s.z + s.lz * l.off, l.km, ((Math.abs(l.off) + R) / 1000) * 2 + 2);
+    const need = MOUNTAIN_MARGIN(R);
+    if (d >= need) return 1;
+    const f = (d - 80) / (R * 1.15);
+    return f < 0.25 ? 0 : f;
   }
 
   _placeLandmark(l) {
@@ -769,9 +802,11 @@ export class World {
         if (def) disposeTree(def.obj);
       }
       const visible = km > l.km - l.range[0] && km < l.km + l.range[1];
-      if (visible && !l.obj) {
+      if (visible && !l.obj && l.fit === undefined) l.fit = this._landmarkFit(l);
+      if (visible && !l.obj && l.fit > 0) {
         const def = landmarkObject(l);
         l.obj = def.obj;
+        if (l.fit < 1) l.obj.scale.setScalar(l.fit);
         const s = sample(l.km);
         l.obj.rotation.y = yawOf(s) + (l.off > 0 ? -Math.PI / 2 : Math.PI / 2);
         this._placeLandmark(l);
@@ -814,3 +849,4 @@ function isShared(g) {
   }
   return shared.has(g);
 }
+export { buildChunk, buildFar };

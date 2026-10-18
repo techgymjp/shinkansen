@@ -41,7 +41,7 @@
       <div class="row next"><span class="lbl">次駅</span><b id="hud-next">品川</b><small id="hud-nextd"></small></div>
     </div>
     <div id="stats" class="panel">
-      <div class="row"><span class="lbl">経過</span><b id="hud-time">0:00:00</b></div>
+      <div class="row"><span class="lbl">記録</span><b id="hud-time">0:00:00</b><small id="hud-pen"></small></div>
       <div class="row"><span class="lbl">時刻</span><b id="hud-clock">06:00</b></div>
       <div class="row boom"><span class="lbl">大爆発</span><b id="hud-boom">0</b><small>回</small></div>
     </div>
@@ -121,9 +121,10 @@
       <div class="howto">
         <h2>操作</h2>
         <ul>
-          <li><kbd>↑</kbd> / <kbd>W</kbd> / <kbd>Space</kbd> 長押し … 加速（ブレーキはありません）</li>
+          <li><kbd>↑</kbd> / <kbd>W</kbd> / <kbd>Space</kbd> 長押し … 加速（ブレーキはありません。離すとゆっくり減速）</li>
           <li><kbd>→</kbd> / <kbd>D</kbd> … 右の線路（上り線）へ　<kbd>←</kbd> / <kbd>A</kbd> … 左の線路（下り線）へ</li>
           <li>線路の切り替えは<b>ポイント（⇄の信号）</b>の手前約200mで入力。のぞみ(300km/h)を追い抜き、対向列車が来る前に戻る!</li>
+          <li>大爆発すると速度0から再出発、1回につき<b>+3分</b>。記録は「タイム部門」と大爆発0回の「無事故部門」の2つ</li>
           <li><kbd>Z</kbd> 左窓　<kbd>X</kbd> 前方　<kbd>C</kbd> 右窓　<kbd>H</kbd> 警笛　<kbd>M</kbd> 消音　<kbd>P</kbd> 一時停止</li>
         </ul>
       </div>
@@ -144,8 +145,9 @@
       <h2 id="res-title">博多 到着!</h2>
       <table>
         <tr><th>区間</th><td id="res-course"></td></tr>
-        <tr><th>所要時間</th><td id="res-time"></td></tr>
-        <tr><th>大爆発</th><td id="res-boom"></td></tr>
+        <tr><th>走行時間</th><td id="res-run"></td></tr>
+        <tr><th>大爆発（1回 +3分）</th><td id="res-boom"></td></tr>
+        <tr><th>記録タイム</th><td id="res-time"></td></tr>
         <tr><th>追い抜いたのぞみ</th><td id="res-pass"></td></tr>
         <tr><th>最高速度</th><td id="res-max"></td></tr>
       </table>
