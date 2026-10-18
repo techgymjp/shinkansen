@@ -115,7 +115,10 @@
         </select></label>
         <label class="chk"><input type="checkbox" id="chk-voice" checked> 車内放送（音声合成）</label>
       </div>
-      <button id="btn-start" class="big">出発進行!</button>
+      <div class="starts">
+        <button id="btn-start" class="big">出発進行!</button>
+        <button id="btn-continue" class="big alt" hidden>続きから<small id="continue-info"></small></button>
+      </div>
       <div id="loading"></div>
       <div class="best" id="best"></div>
       <div class="howto">
@@ -136,7 +139,9 @@
     <div class="t-inner small">
       <h2>一時停止中</h2>
       <button id="btn-resume" class="big">再開</button>
-      <button id="btn-quit">タイトルへ戻る</button>
+      <button id="btn-save">セーブして中断</button>
+      <button id="btn-quit">セーブせずタイトルへ</button>
+      <p class="note">セーブは1つだけです。続きから再開すると消えます。</p>
     </div>
   </section>
 

@@ -94,6 +94,8 @@ let announced = new Set();
 let tunnelFactor = 0;
 let wasInTunnel = false;
 let warnCool = 0;
+let resumed = false;
+let autosaveT = 0;
 
 // ---------------- タイトル画面 ----------------
 const selFrom = $('sel-from'), selTo = $('sel-to');
@@ -126,10 +128,12 @@ function fmtTime(sec) {
   return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-$('btn-start').addEventListener('click', startGame);
+$('btn-start').addEventListener('click', () => startGame());
+$('btn-continue').addEventListener('click', continueGame);
+$('btn-save').addEventListener('click', () => { saveGame(); toTitle(); });
 $('btn-again').addEventListener('click', () => { $('result').hidden = true; startGame(); });
 $('btn-title').addEventListener('click', toTitle);
-$('btn-quit').addEventListener('click', toTitle);
+$('btn-quit').addEventListener('click', () => { clearSave(); toTitle(); });
 $('btn-resume').addEventListener('click', togglePause);
 $('btn-pause').addEventListener('click', togglePause);
 $('btn-mute').addEventListener('click', toggleMute);
@@ -141,9 +145,50 @@ function toTitle() {
   $('touch').hidden = true;
   $('title').hidden = false;
   loadBest();
+  showContinue();
 }
 
-function startGame() {
+// ---------------- 中断セーブ ----------------
+// セーブは1つだけ。続きから再開すると消える (危ない場面の前のセーブ・ロードのやり直しを防ぐ)
+const SAVE_KEY = 'bousou2:save';
+const PLAYING = ['run', 'countdown', 'crash', 'pause', 'loading'];
+function readSave() {
+  try { return JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch { return null; }
+}
+function clearSave() {
+  try { localStorage.removeItem(SAVE_KEY); } catch {}
+}
+function saveGame() {
+  if (!PLAYING.includes(state) || /[?&](start|speed)=/.test(location.search)) return;
+  const data = {
+    v: 1, from: course.from, to: course.to, scale: timeScale, voice: sound.voice,
+    km: P.km, time: P.time, booms: P.booms, passed: P.passed, maxV: P.maxV, savedAt: Date.now(),
+  };
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch {}
+}
+function showContinue() {
+  const d = readSave();
+  $('btn-continue').hidden = !d;
+  if (!d) return;
+  const near = STATIONS.reduce((a, b) => (Math.abs(b.km - d.km) < Math.abs(a.km - d.km) ? b : a));
+  $('continue-info').textContent =
+    `${STATIONS[d.from].name}→${STATIONS[d.to].name}　${near.name}付近 ${d.km.toFixed(1)}km・${fmtTime(d.time + d.booms * PENALTY_SEC)}`;
+}
+function continueGame() {
+  const d = readSave();
+  if (!d) { showContinue(); return; }
+  clearSave();
+  selFrom.value = d.from;
+  selTo.value = d.to;
+  $('sel-scale').value = d.scale;
+  $('chk-voice').checked = d.voice !== false;
+  startGame(d);
+}
+window.addEventListener('pagehide', saveGame);
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveGame(); });
+showContinue();
+
+function startGame(resume) {
   let from = +selFrom.value, to = +selTo.value;
   if (to <= from) {
     if (from === STATIONS.length - 1) { from = 0; }
@@ -157,6 +202,9 @@ function startGame() {
   sound.init();
   sound.voice = $('chk-voice').checked;
   Object.assign(P, { km: isNaN(dbgStart) ? course.startKm : dbgStart, v: +(q.get('speed') || 0), lat: LANE_OFF, accel: false, pending: null, changing: null, booms: 0, time: 0, passed: 0, maxV: 0 });
+  // 続きから: 位置と記録を戻し、速度0から再出発 (周りの列車は配置し直す)
+  if (resume) Object.assign(P, { km: resume.km, v: 0, booms: resume.booms, time: resume.time, passed: resume.passed, maxV: resume.maxV });
+  resumed = !!resume;
   lastKm = P.km;
   announced = new Set();
   for (const e of explosions) e.dispose();
@@ -500,6 +548,7 @@ function crash(train) {
   state = 'crash';
   crashT = 0;
   P.booms++;
+  saveGame(); // 大破を記録してから保存 (閉じて読み込み直しても大破は消えない)
   const s = sample(P.km);
   const h = trackHeight(P.km);
   crashPos.set(s.x + s.lx * P.lat - world.origin.x, h + RAIL_Y, s.z + s.lz * P.lat - world.origin.z);
@@ -532,6 +581,7 @@ function respawn() {
 
 function finish() {
   state = 'finish';
+  clearSave();
   P.km = course.goalKm;
   const st = STATIONS[course.to];
   telop(`${fmtTime(totalTime())}　大爆発 ${P.booms}回`, `${st.name} 到着`, st.en);
@@ -664,8 +714,14 @@ function frame(now) {
       $('hud').hidden = false;
       $('touch').hidden = !isTouch;
       const st = STATIONS[course.from];
-      telop(`${STATIONS[course.to].name}ゆき　暴走新幹線`, `${st.name} 出発`, st.en);
-      sound.say(`この電車は、暴走新幹線、${STATIONS[course.to].kana}ゆきです`);
+      if (resumed) {
+        const near = STATIONS.reduce((a, b) => (Math.abs(b.km - P.km) < Math.abs(a.km - P.km) ? b : a));
+        telop(`${STATIONS[course.to].name}ゆき　${P.km.toFixed(1)}km から`, '運転再開', `near ${near.en}`);
+        sound.say(`お待たせしました。${STATIONS[course.to].kana}ゆき、運転を再開します`);
+      } else {
+        telop(`${STATIONS[course.to].name}ゆき　暴走新幹線`, `${st.name} 出発`, st.en);
+        sound.say(`この電車は、暴走新幹線、${STATIONS[course.to].kana}ゆきです`);
+      }
     }
     updateCamera(dt);
     updateEnvironment(dt);
@@ -681,6 +737,8 @@ function frame(now) {
     if (countT <= 0) { $('countdown').hidden = true; state = 'run'; }
     traffic.update(simDt, P.km);
   } else if (state === 'run') {
+    autosaveT += dt;
+    if (autosaveT > 20) { autosaveT = 0; saveGame(); }
     const steps = Math.ceil(simDt / 0.04);
     for (let i = 0; i < steps && state === 'run'; i++) stepRun(simDt / steps);
   } else if (state === 'crash') {
