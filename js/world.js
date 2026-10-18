@@ -200,6 +200,30 @@ export const PLACED_LANDMARKS = LANDMARKS.filter((l) => l.type !== 'river' && l.
   return { ...l, off, foot: FOOTPRINT[l.type] || 0 };
 });
 
+// トンネル上の尾根の形
+// 断面: [左右位置 (尾根幅に対する割合, 左が正), 高さの割合]。中央付近 (±12m) は常に最高点
+const RIDGE_PROFILE = [[-1, 0], [-0.7, 0.35], [-0.4, 0.72], [-0.15, 0.95], [-0.01, 1], [0.01, 1], [0.15, 0.95], [0.4, 0.72], [0.7, 0.35], [1, 0]];
+function ridgeShape(u) {
+  // 中心からの割合 u (0..1) での高さの割合 (RIDGE_PROFILE の右半分を補間)
+  const pts = RIDGE_PROFILE.slice(5).map(([k, f]) => [Math.abs(k), f]);
+  for (let i = 0; i < pts.length - 1; i++) {
+    if (u <= pts[i + 1][0]) return pts[i][1] + (pts[i + 1][1] - pts[i][1]) * (u - pts[i][0]) / (pts[i + 1][0] - pts[i][0]);
+  }
+  return 0;
+}
+// 尾根の高さ (m): 坑口で16m、中へ入るほど高くなり、ゆるやかに起伏する
+function ridgeHeight(t, km) {
+  const seed = (t.a * 997) % 1;
+  const hMax = (t.b - t.a < 1.2 ? 45 : 90) + seed * 180;
+  const dp = Math.min(km - t.a, t.b - km);
+  const ramp = Math.min(1, Math.max(0, dp) / 0.35);
+  const wave = 0.75 + 0.18 * Math.sin(km * 6.1 + seed * 20) + 0.07 * Math.sin(km * 17.3 + seed * 7);
+  return 16 + (hMax * wave - 16) * ramp * ramp * (3 - 2 * ramp);
+}
+const ridgeWidth = (hs) => 110 + hs * 2.3;
+// 左右で尾根の張り出しを変えて自然に見せる
+function ridgeSkew(t, km, side) { return 0.8 + 0.35 * (0.5 + 0.5 * Math.sin(km * 3.7 + side * 2.1 + t.a)); }
+
 // ---------------- チャンク生成 ----------------
 function buildChunk(index) {
   assets();
@@ -419,46 +443,67 @@ function buildChunk(index) {
       grp.add(portal);
     }
   }
-  // トンネルを覆う山 (中心が線路上の円錐。坑口で地表高 ~16m になる位置に置く)
+  // トンネルを覆う山: 線路に沿って断面を掃引した尾根。トンネルの上は常に16m以上の高さを保つ
+  // (円錐の山だと、裾野がトンネル内の線路にかかって山肌がトンネルを突き抜けて見えるため)
   for (const t of tunnels) {
-    const len = (t.b - t.a) * 1000;
-    const cones = [];
-    const H0 = 140 + ((t.a * 997) % 1) * 160;
-    const R0 = H0 * 2.6;
-    const d0 = R0 * (1 - 16 / H0);
-    if (len < 2 * d0) {
-      const H = Math.max(60, H0 * 0.6);
-      const R = (len / 2) / (1 - 16 / H) + 40;
-      cones.push([(t.a + t.b) / 2, H, Math.max(R, len / 2 + 30)]);
-    } else {
-      cones.push([t.a + d0 / 1000, H0, R0]);
-      cones.push([t.b - d0 / 1000, H0, R0]);
-      for (let km = t.a + d0 / 1000 + 0.5; km < t.b - d0 / 1000 - 0.3; km += 0.55) {
-        const H = H0 + ((km * 131) % 1) * 200;
-        cones.push([km, H, H * 2.6]);
-      }
-    }
-    for (const [ck, H, R] of cones) {
-      if (ck < a || ck >= b) continue;
-      const s = sample(ck);
-      s.h = 0; // トンネル内の線路は地表高
-      const g = new THREE.ConeGeometry(R, H, 18, 1, true);
-      g.translate(0, H / 2 - 0.5 + s.h, 0);
-      const m = new THREE.Mesh(g, snow ? G.hillMatSnow : G.hillMat);
-      m.position.set(s.x - base.x, 0, s.z - base.z);
-      m.rotation.y = r() * 6;
-      grp.add(m);
-      // 山肌の木
+    const ta = Math.max(a, t.a), tb = Math.min(b, t.b);
+    if (tb > ta) {
+      const SR = samplesBetween(ta, tb, 0.025);
+      const offsK = RIDGE_PROFILE.map(([k]) => k);
+      grp.add(new THREE.Mesh(sweep(SR, (s) => {
+        const hs = ridgeHeight(t, s.km);
+        const w = ridgeWidth(hs);
+        return RIDGE_PROFILE.map(([k, f], idx) => {
+          const side = k < 0 ? -1 : 1;
+          const off = Math.abs(k) < 0.05 ? side * 12 : k * w * ridgeSkew(t, s.km, side);
+          return [off, hs * f * (idx === 0 || idx === offsK.length - 1 ? 0 : 1) - 0.3];
+        });
+      }, base), snow ? G.hillMatSnow : G.hillMat));
+      // 尾根の木
       const trees = [];
-      for (let i = 0; i < 60; i++) {
-        const ang = r() * Math.PI * 2, rr = Math.sqrt(r()) * R * 0.95;
-        const y = s.h + H * (1 - rr / R) - 0.5;
-        const tx = Math.cos(ang) * rr, tz = Math.sin(ang) * rr;
+      const n = Math.round((tb - ta) * 140);
+      for (let i = 0; i < n; i++) {
+        const km = ta + r() * (tb - ta);
+        const hs = ridgeHeight(t, km), w = ridgeWidth(hs);
+        const side = r() < 0.5 ? -1 : 1;
+        const u = 0.08 + r() * 0.8; // 尾根の中心からの割合
+        const off = side * u * w * ridgeSkew(t, km, side);
+        const y = hs * ridgeShape(u) - 0.8;
+        const ps = sample(km);
         const sc = 5 + r() * 4;
-        trees.push([s.x + tx - base.x, y - 1, s.z + tz - base.z, 0, sc, sc * 1.2, sc]);
+        trees.push([ps.x + ps.lx * off - base.x, y, ps.z + ps.lz * off - base.z, 0, sc, sc * 1.2, sc]);
       }
       const ti = instanced(G.treeGeo, G.treeMat, trees, () => (snow ? 0xdfe6ea : 0x2e5527));
       if (ti) grp.add(ti);
+    }
+    // 坑口側の断面をふさぐ (トンネルの口の形に穴をあける)
+    for (const [pk, dir] of [[t.a, 1], [t.b, -1]]) {
+      if (pk < a || pk >= b) continue;
+      const hs = ridgeHeight(t, pk);
+      const w = ridgeWidth(hs);
+      const shape = new THREE.Shape();
+      RIDGE_PROFILE.forEach(([k, f], idx) => {
+        const side = k < 0 ? -1 : 1;
+        const off = Math.abs(k) < 0.05 ? side * 12 : k * w * ridgeSkew(t, pk, side);
+        const y = idx === 0 || idx === RIDGE_PROFILE.length - 1 ? -0.3 : hs * f - 0.3;
+        if (idx === 0) shape.moveTo(off, y); else shape.lineTo(off, y);
+      });
+      shape.closePath();
+      const hole = new THREE.Path();
+      hole.moveTo(6.8, -0.3);
+      for (let k = 0; k <= 12; k++) {
+        const th = (k / 12) * Math.PI;
+        hole.lineTo(Math.cos(th) * 6.8, 2.2 + Math.sin(th) * 6.6);
+      }
+      hole.lineTo(-6.8, -0.3);
+      hole.closePath();
+      shape.holes.push(hole);
+      const cap = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshLambertMaterial({ color: snow ? 0xe8edf2 : 0x46683f, side: THREE.DoubleSide }));
+      const s = sample(pk);
+      cap.position.set(s.x - base.x, 0, s.z - base.z);
+      // シェイプの +x は回転後に線路の左方向 (off の正の向き) になる
+      cap.rotation.y = yawOf(s);
+      grp.add(cap);
     }
   }
 
