@@ -66,58 +66,86 @@ function carTexture(lead) {
 // 断面 (スーパー楕円) を長手方向に掃引して車体を作る。
 // 車体の前方は +Z。lead=true のとき前端が流線形のノーズになる。
 function carGeometry(lead) {
-  const ringN = 28;
+  const ringN = 32;
+  const NOSE_RINGS = 24;
   const zs = [];
   if (lead) {
-    for (let i = 0; i <= 18; i++) zs.push(CAR_LEN / 2 - NOSE_LEN + (NOSE_LEN * i) / 18);
+    for (let i = 0; i <= NOSE_RINGS; i++) zs.push(CAR_LEN / 2 - NOSE_LEN + (NOSE_LEN * i) / NOSE_RINGS);
   }
   const bodyEnd = lead ? CAR_LEN / 2 - NOSE_LEN : CAR_LEN / 2;
   const bodyZs = [-CAR_LEN / 2, -CAR_LEN / 2 + 0.4, bodyEnd - 0.4, bodyEnd];
   const all = [...bodyZs, ...zs.slice(1)];
-  const pos = [], uv = [], idx = [];
+  const pos = [], uv = [], col = [], idx = [];
+  const WHITE_UV = [0.995, 0.96]; // テクスチャの白い部分
+  const cWhite = new THREE.Color(0xffffff), cBlue = new THREE.Color(0x0b3c9c), cBlue2 = new THREE.Color(0x1d5fd1);
+  const cGlass = new THREE.Color(0x0d141c), cGray = new THREE.Color(0x9aa3ab), cLight = new THREE.Color(0xfff6d0);
+  const rings = [];
   for (let r = 0; r < all.length; r++) {
     const z = all[r];
-    let hw = CAR_W / 2, top = CAR_H, bottom = CAR_BOTTOM, n = 5;
+    let hw = CAR_W / 2, top = CAR_H, bottom = CAR_BOTTOM, n = 5, u = -1;
     if (z < -CAR_LEN / 2 + 0.4 || (!lead && z > CAR_LEN / 2 - 0.4)) { hw *= 0.96; top -= 0.08; }
     if (lead && z > bodyEnd) {
-      const u = (z - bodyEnd) / NOSE_LEN; // 0..1
-      hw = (CAR_W / 2) * Math.sqrt(Math.max(0.02, 1 - u ** 2.4)) * (1 - 0.15 * u);
-      top = bottom + (CAR_H - bottom) * Math.max(0.12, 1 - u ** 0.85 * 0.88);
-      if (u > 0.98) { hw *= 0.6; top = bottom + 0.55; }
-      n = 3.2;
+      u = (z - bodyEnd) / NOSE_LEN; // 0..1 (先端が1)
+      hw = (CAR_W / 2) * Math.sqrt(Math.max(0.02, 1 - u ** 2.6)) * (1 - 0.12 * u);
+      top = bottom + (CAR_H - bottom) * Math.max(0.13, 1 - u ** 0.9 * 0.87);
+      if (u > 0.99) { hw *= 0.5; top = bottom + 0.5; }
+      n = 3.0;
     }
     const cy = (top + bottom) / 2, hh = (top - bottom) / 2;
+    rings.push({ z, hw, top, bottom });
     for (let k = 0; k <= ringN; k++) {
       const a = (k / ringN) * Math.PI * 2;
       const c = Math.cos(a), s = Math.sin(a);
       const x = hw * Math.sign(c) * Math.abs(c) ** (2 / n);
       const y = cy + hh * Math.sign(s) * Math.abs(s) ** (2 / (s < 0 ? 8 : n));
       pos.push(x, y, z);
-      uv.push((CAR_LEN / 2 - z) / CAR_LEN, y / (CAR_H + 0.2));
+      if (u < 0) {
+        uv.push((CAR_LEN / 2 - z) / CAR_LEN, y / (CAR_H + 0.2));
+        col.push(1, 1, 1);
+      } else {
+        // ノーズは頂点色で塗る: 側面の青帯、運転台の窓、前照灯
+        uv.push(...WHITE_UV);
+        let cc = cWhite;
+        const side = Math.abs(x) > hw * 0.6 && s > -0.6;
+        const stripeY = 1.25 + 0.3 - u * 0.55;
+        if (side && y > stripeY - 0.3 && y < stripeY) cc = cBlue;
+        else if (side && y > stripeY - 0.42 && y < stripeY - 0.36) cc = cBlue2;
+        if (u > 0.22 && u < 0.62 && s > 0.35 && Math.abs(x) < hw * 0.92) cc = cGlass;
+        if (u > 0.8 && u < 0.93 && s < 0.2 && s > -0.5 && Math.abs(x) > hw * 0.3 && Math.abs(x) < hw * 0.75) cc = cLight;
+        col.push(cc.r, cc.g, cc.b);
+      }
     }
   }
   for (let r = 0; r < all.length - 1; r++) {
     for (let k = 0; k < ringN; k++) {
       const a = r * (ringN + 1) + k, b = a + ringN + 1;
-      idx.push(a, b, a + 1, b, b + 1, a + 1);
+      idx.push(a, a + 1, b, b, a + 1, b + 1);
     }
   }
-  // 端面をふさぐ
-  const cap = (r, flip) => {
-    const center = pos.length / 3;
-    const z = all[r];
-    pos.push(0, (CAR_H + CAR_BOTTOM) / 2, z);
-    uv.push(0.5, 0.5);
+  // 端面をふさぐ (貫通路側はグレー)
+  const cap = (r, flip, color) => {
+    const base = pos.length / 3;
+    const rg = rings[r];
+    pos.push(0, (rg.top + rg.bottom) / 2, rg.z);
+    uv.push(...WHITE_UV);
+    col.push(color.r, color.g, color.b);
+    for (let k = 0; k <= ringN; k++) {
+      const o = (r * (ringN + 1) + k) * 3;
+      pos.push(pos[o], pos[o + 1], pos[o + 2]);
+      uv.push(...WHITE_UV);
+      col.push(color.r, color.g, color.b);
+    }
     for (let k = 0; k < ringN; k++) {
-      const a = r * (ringN + 1) + k;
-      if (flip) idx.push(center, a + 1, a); else idx.push(center, a, a + 1);
+      const a = base + 1 + k;
+      if (flip) idx.push(base, a, a + 1); else idx.push(base, a + 1, a);
     }
   };
-  cap(0, false);
-  cap(all.length - 1, true);
+  cap(0, false, cGray);
+  cap(all.length - 1, true, lead ? cWhite : cGray);
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   g.setIndex(idx);
   g.computeVertexNormals();
   return g;
@@ -128,9 +156,9 @@ function ensureCarAssets() {
   if (carGeoLead) return;
   carGeoLead = carGeometry(true);
   carGeoMid = carGeometry(false);
-  carMatLead = new THREE.MeshPhongMaterial({ map: carTexture(true), shininess: 60, specular: 0x666666 });
-  carMatMid = new THREE.MeshPhongMaterial({ map: carTexture(false), shininess: 60, specular: 0x666666 });
-  bogieGeo = new THREE.BoxGeometry(2.6, 0.7, 3.2);
+  carMatLead = new THREE.MeshPhongMaterial({ map: carTexture(true), vertexColors: true, shininess: 60, specular: 0x666666 });
+  carMatMid = new THREE.MeshPhongMaterial({ map: carTexture(false), vertexColors: true, shininess: 60, specular: 0x666666 });
+  bogieGeo = new THREE.BoxGeometry(2.3, 0.5, 2.8);
   bogieMat = new THREE.MeshLambertMaterial({ color: 0x30343a });
   pantoGeo = new THREE.BoxGeometry(1.6, 0.5, 0.25);
 }
@@ -153,9 +181,11 @@ export function makeCar(kind) {
   const body = new THREE.Mesh(lead ? carGeoLead : carGeoMid, lead ? carMatLead : carMatMid);
   if (kind === 'tail') body.rotation.y = Math.PI;
   grp.add(body);
-  for (const z of [-CAR_LEN / 2 + 3, CAR_LEN / 2 - 3]) {
+  // 台車: 先頭車はノーズの下を避けて客室寄りに置く
+  const zs = kind === 'lead' ? [-CAR_LEN / 2 + 3, 0.5] : kind === 'tail' ? [-0.5, CAR_LEN / 2 - 3] : [-CAR_LEN / 2 + 3, CAR_LEN / 2 - 3];
+  for (const z of zs) {
     const b = new THREE.Mesh(bogieGeo, bogieMat);
-    b.position.set(0, 0.45, z);
+    b.position.set(0, 0.32, z);
     grp.add(b);
   }
   return grp;

@@ -527,7 +527,8 @@ function finish() {
   sound.say(`${st.kana}に到着しました`);
   let rec = null;
   try { rec = JSON.parse(localStorage.getItem(recordKey()) || 'null'); } catch {}
-  const better = !rec || P.time < rec.time;
+  const debugRun = /[?&](start|speed)=/.test(location.search);
+  const better = !debugRun && (!rec || P.time < rec.time);
   if (better) { try { localStorage.setItem(recordKey(), JSON.stringify({ time: P.time, booms: P.booms })); } catch {} }
   setTimeout(() => {
     $('res-title').textContent = `${st.name} 到着!`;
@@ -536,7 +537,7 @@ function finish() {
     $('res-boom').textContent = `${P.booms} 回`;
     $('res-pass').textContent = `${P.passed} 本`;
     $('res-max').textContent = `${Math.round(P.maxV)} km/h`;
-    $('res-record').textContent = better ? '★ 最速記録更新!' : `最速記録: ${fmtTime(rec.time)}`;
+    $('res-record').textContent = better ? '★ 最速記録更新!' : rec ? `最速記録: ${fmtTime(rec.time)}` : '';
     $('result').hidden = false;
     $('hud').hidden = true;
     $('touch').hidden = true;
@@ -728,5 +729,5 @@ function renderTitle(dt) {
   updateEnvironment(dt);
 }
 
-window.__dbg = { P, traffic, world, get state() { return state; } };
+window.__dbg = { P, traffic, world, camera, get state() { return state; } };
 requestAnimationFrame(frame);
