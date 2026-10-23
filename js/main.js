@@ -620,6 +620,9 @@ function crash(train) {
   state = 'crash';
   crashT = 0;
   P.booms++;
+  // 接近警告は消す (大爆発の文字の後ろで点滅しないように)
+  $('alert').className = '';
+  alertTimer = 0;
   saveGame(); // 大破を記録してから保存 (閉じて読み込み直しても大破は消えない)
   const s = sample(P.km);
   const h = trackHeight(P.km);
@@ -824,6 +827,9 @@ function updateEnvironment(dt) {
   sun.position.set(camera.position.x + 3000, 6000, camera.position.z + 4000);
   sun.target.position.copy(camera.position);
   $('speedlines').style.opacity = view === 'front' && state === 'run' ? Math.max(0, (P.v - 380) / 223) * 0.9 : 0;
+  // 大爆発のときはカメラが車外に出るので、運転台・客室の窓枠を外す
+  const outside = state === 'crash' || (state === 'pause' && pausedFrom === 'crash');
+  if ($('frame').hidden !== outside) $('frame').hidden = outside;
 }
 
 // ---------------- メインループ ----------------
