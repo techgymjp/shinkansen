@@ -140,7 +140,12 @@ function fmtTime(sec) {
 
 $('btn-start').addEventListener('click', () => startGame());
 $('btn-continue').addEventListener('click', continueGame);
-$('btn-save').addEventListener('click', () => { saveGame(); toTitle(); });
+// 一時停止メニューからタイトルへ戻るときも全画面広告を挟む (アプリのみ)
+$('btn-save').addEventListener('click', async () => {
+  saveGame();
+  await Ads.showInterstitial();
+  toTitle();
+});
 // 結果画面の「もう一度」で毎回、全画面広告を挟む (アプリのみ)
 $('btn-again').addEventListener('click', async () => {
   await Ads.showInterstitial();
@@ -152,7 +157,11 @@ $('btn-title').addEventListener('click', async () => {
   await Ads.showInterstitial();
   toTitle();
 });
-$('btn-quit').addEventListener('click', () => { clearSave(); toTitle(); });
+$('btn-quit').addEventListener('click', async () => {
+  clearSave();
+  await Ads.showInterstitial();
+  toTitle();
+});
 $('btn-resume').addEventListener('click', togglePause);
 $('btn-pause').addEventListener('click', togglePause);
 $('btn-mute').addEventListener('click', toggleMute);
@@ -525,6 +534,21 @@ function updateHud() {
     ps += `<path d="M32 ${y.toFixed(1)} L88 ${(y - 7).toFixed(1)} M88 ${y.toFixed(1)} L32 ${(y - 7).toFixed(1)}" stroke="#ffd23a" stroke-width="3"/>`;
   }
   lanePoints.innerHTML = ps;
+}
+
+// 駅名テロップ・車掌放送・警告が重ならないよう、表示中のものの下に順に並べる
+function stackMessages() {
+  const band = $('telop').className === 'show' ? $('telop').firstElementChild.getBoundingClientRect() : null;
+  let bottom = band ? band.bottom : 0;
+  for (const id of ['announce', 'alert']) {
+    const el = $(id);
+    el.style.top = '';
+    if (!el.classList.contains('show')) continue;
+    const r = el.getBoundingClientRect();
+    const hudTop = $('hud').getBoundingClientRect().top;
+    if (bottom && r.top < bottom + 8) el.style.top = `${bottom + 8 - hudTop}px`;
+    bottom = Math.max(bottom, el.getBoundingClientRect().bottom);
+  }
 }
 
 // ---------------- 沿線案内 (車掌放送) ----------------
@@ -941,6 +965,7 @@ function frame(now) {
     annTimer = 3.2;
     if (a.voice) sound.say(a.voice, voiceLang());
   }
+  stackMessages();
   hudT -= dt;
   if (hudT <= 0 && !$('hud').hidden) { updateHud(); hudT = 1 / 20; }
   lastKm = P.km;
