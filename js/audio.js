@@ -68,7 +68,7 @@ export class Sound {
   // 別アプリへの切り替えや広告の表示中は音を止める
   suspend() {
     if (this.ctx && this.ctx.state === 'running') this.ctx.suspend();
-    if (window.speechSynthesis) speechSynthesis.cancel();
+    this.stopVoice();
   }
   resume() {
     if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
@@ -177,12 +177,32 @@ export class Sound {
   }
 
   // 車内放送 (音声合成)
+  // Android アプリの WebView はブラウザの音声合成に対応していないので、端末の読み上げ機能 (TTS) を使う
+  get nativeTts() {
+    const cap = window.Capacitor;
+    return cap && cap.isNativePlatform && cap.isNativePlatform() && cap.Plugins ? cap.Plugins.TextToSpeech : null;
+  }
+
   say(text, lang = 'ja-JP') {
-    if (this.muted || !this.voice || !window.speechSynthesis) return;
+    if (this.muted || !this.voice) return;
+    const tts = this.nativeTts;
+    if (tts) {
+      tts.stop().catch(() => {}).finally(() => {
+        tts.speak({ text, lang, rate: 1.05, pitch: 1.0, volume: 1.0, category: 'ambient' }).catch(() => {});
+      });
+      return;
+    }
+    if (!window.speechSynthesis) return;
     const u = new SpeechSynthesisUtterance(text);
     u.lang = lang;
     u.rate = 1.05;
     speechSynthesis.cancel();
     speechSynthesis.speak(u);
+  }
+
+  stopVoice() {
+    const tts = this.nativeTts;
+    if (tts) tts.stop().catch(() => {});
+    if (window.speechSynthesis) speechSynthesis.cancel();
   }
 }

@@ -150,8 +150,9 @@ td { text-align: right; font-family: var(--led-font); color: var(--led); font-si
   #viewtabs { top: 8px; }
   #viewtabs button { padding: 5px 9px; font-size: 12px; }
   #viewtabs kbd { display: none; }
-  #minimap { display: none; }
-  #dash { bottom: 120px; gap: 6px; transform: translateX(-50%) scale(0.72); transform-origin: 50% 100%; }
+  /* 縦画面: 地図は小さくして左側 (情報パネルの下) に出す */
+  #minimap { display: block; right: auto; bottom: auto; left: 8px; top: 160px; width: 150px; height: 103px; border-radius: 8px; opacity: 0.92; }
+  #dash { bottom: 142px; gap: 6px; transform: translateX(-50%) scale(0.72); transform-origin: 50% 100%; }
   #btn-mute, #btn-pause { top: 160px; }
   #telop { top: 30%; }
   .t-band { padding: 8px 40px; }
@@ -206,7 +207,8 @@ td { text-align: right; font-family: var(--led-font); color: var(--led); font-si
   #viewtabs button { padding: 4px 9px; font-size: 11px; }
   #viewtabs kbd { display: none; }
   #btn-mute, #btn-pause { top: 78px; width: 32px; height: 32px; font-size: 14px; }
-  #minimap { display: none; }
+  /* 地図は小さくして左側 (情報パネルの下) に出す */
+  #minimap { display: block; left: max(8px, env(safe-area-inset-left, 0px)); right: auto; top: 92px; bottom: auto; width: 150px; height: 103px; border-radius: 8px; opacity: 0.92; }
   #dash { bottom: 4px; gap: 8px; transform: translateX(-50%) scale(0.56); transform-origin: 50% 100%; }
   #telop { top: 14%; }
   .t-band { padding: 6px 40px 8px; }
@@ -258,3 +260,7 @@ html[lang="en"] h1 { font-size: clamp(32px, 6.2vw, 72px); letter-spacing: 0.03em
   .langbtn { font-size: 12px; padding: 3px 12px; }
   html[lang="en"] h1 { font-size: 34px; }
 }
+
+/* 画面より中身が高いときは上から表示してスクロールする (中央寄せで上が切れないように) */
+.screen { align-items: flex-start; }
+.screen > .t-inner { margin-block: auto; }

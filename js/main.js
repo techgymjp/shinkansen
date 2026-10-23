@@ -149,7 +149,11 @@ $('btn-again').addEventListener('click', async () => {
   $('result').hidden = true;
   startGame();
 });
-$('btn-title').addEventListener('click', toTitle);
+// 結果画面の「タイトルへ」でも全画面広告を挟む (アプリのみ)
+$('btn-title').addEventListener('click', async () => {
+  await Ads.showInterstitial();
+  toTitle();
+});
 $('btn-quit').addEventListener('click', () => { clearSave(); toTitle(); });
 $('btn-resume').addEventListener('click', togglePause);
 $('btn-pause').addEventListener('click', togglePause);
@@ -313,7 +317,7 @@ function setView(v) {
 function toggleMute() {
   sound.setMuted(!sound.muted);
   $('btn-mute').textContent = sound.muted ? '🔇' : '🔊';
-  if (sound.muted && window.speechSynthesis) speechSynthesis.cancel();
+  if (sound.muted) sound.stopVoice();
 }
 let pausedFrom = null;
 function togglePause() {
@@ -635,7 +639,7 @@ function crash(train) {
   P.accel = false;
   P.pending = null;
   P.changing = null;
-  if (window.speechSynthesis) speechSynthesis.cancel();
+  sound.stopVoice();
 }
 
 // 大破のあと、広告を見れば 300km/h から再出発できる (アプリのみ・1 回の運転で 1 回)
