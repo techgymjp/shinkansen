@@ -42,3 +42,8 @@ You can crash as many times as you like and still reach Hakata, but every crash 
 • English and Japanese
 
 All aboard — departure!
+
+[Release notes]
+<en-US>
+Runaway Shinkansen is departing! First release.
+</en-US>
