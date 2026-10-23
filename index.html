@@ -95,6 +95,19 @@
 
   <div id="countdown" hidden></div>
 
+  <div id="adcont" hidden>
+    <div class="ac-card">
+      <div class="ac-head">広告を見て 300km/h から再出発</div>
+      <p class="ac-lead">加速し直さずに走り出せます（1 回の運転で 1 回まで）。大爆発の回数とペナルティは変わりません</p>
+      <div class="ac-count" id="ac-count">10</div>
+      <p class="ac-note" id="ac-note"></p>
+      <div class="ac-btns">
+        <button id="ac-watch" class="big">▶ 広告を見る</button>
+        <button id="ac-skip" type="button">速度 0 から再出発</button>
+      </div>
+    </div>
+  </div>
+
   <div id="crash" hidden>
     <div class="c-main">大爆発!!</div>
     <div class="c-sub" id="crash-sub"></div>
@@ -123,7 +136,13 @@
       <div class="best" id="best"></div>
       <div class="howto">
         <h2>操作</h2>
-        <ul>
+        <ul class="tc">
+          <li><b>加速</b>ボタンを押し続けると加速（ブレーキはありません。離すとゆっくり減速）</li>
+          <li><b>◀ ▶</b>ボタンで左右の線路へ。<b>ポイント（⇄の信号）</b>の手前約200mで押す。のぞみ(300km/h)を追い抜き、対向列車が来る前に戻る!</li>
+          <li>大爆発すると速度0から再出発、1回につき<b>+3分</b>。記録は「タイム部門」と大爆発0回の「無事故部門」の2つ</li>
+          <li>上の<b>左窓・前方・右窓</b>で視点を切り替え。<b>⏸</b>で一時停止・セーブ</li>
+        </ul>
+        <ul class="kb">
           <li><kbd>↑</kbd> / <kbd>W</kbd> / <kbd>Space</kbd> 長押し … 加速（ブレーキはありません。離すとゆっくり減速）</li>
           <li><kbd>→</kbd> / <kbd>D</kbd> … 右の線路（上り線）へ　<kbd>←</kbd> / <kbd>A</kbd> … 左の線路（下り線）へ</li>
           <li>線路の切り替えは<b>ポイント（⇄の信号）</b>の手前約200mで入力。のぞみ(300km/h)を追い抜き、対向列車が来る前に戻る!</li>
@@ -132,6 +151,11 @@
         </ul>
       </div>
       <p class="credit">線形・駅位置: 国土数値情報（鉄道データ）国土交通省 を加工して作成</p>
+      <p class="legal">
+        <span id="build-info"></span>
+        <a href="https://techgym.jp/privacy-policy/" target="_blank" rel="noopener">プライバシーポリシー</a>
+        <span id="ad-privacy" hidden>｜<a href="#" id="ad-privacy-link">広告の設定</a></span>
+      </p>
     </div>
   </section>
 
@@ -173,6 +197,8 @@
     </div>
   </section>
 </div>
+<script src="js/build-info.js"></script>
+<script src="js/ads-config.js"></script>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

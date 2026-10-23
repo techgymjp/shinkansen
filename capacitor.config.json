@@ -1,0 +1,8 @@
+{
+  "appId": "jp.techgym.shinkansen",
+  "appName": "暴走新幹線",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#000000"
+  }
+}

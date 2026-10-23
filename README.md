@@ -30,6 +30,45 @@ python3 -m http.server 8000
 
 GitHub Pages などにそのまま置いても動きます。
 
+## Android 版
+
+JET STRIKE（techgymjp/jet-fighter）と同じ構成で、Capacitor を使って Android アプリにしています。パッケージ名は `jp.techgym.shinkansen` です。
+
+- ゲームのファイルはアプリに同梱し、オフラインでも遊べます（`npm run build` で `www/` にコピー）
+- 横画面固定、システムバーを隠した全画面、プレイ中は画面を消さない
+- 戻るボタン: プレイ中は一時停止、一時停止中は再開、タイトルと結果画面ではアプリを終了
+- 別のアプリに切り替えると自動で一時停止し、音を止める
+- 結果のシェアは Android の共有メニュー
+- 広告（AdMob）
+  - インタースティシャル: 結果画面で「もう一度」を押したとき、2 回に 1 回
+  - リワード: 大爆発したあと「広告を見て 300km/h から再出発」（1 回の運転で 1 回、10 秒で自動的に速度 0 から再出発）。大爆発の回数とペナルティは変わりません
+  - 起動時に Google の同意確認（UMP）。EU など必要な地域ではタイトルに「広告の設定」を表示
+- タイトル画面にビルド番号とプライバシーポリシーへのリンク
+
+### ビルド
+
+クラウドの Claude Code からは Android SDK を入れられないので、ビルドは GitHub Actions（`.github/workflows/android.yml`）で行います。
+
+1. `npm ci` → `npm run build` → `npx cap sync android` → `./gradlew assembleDebug`
+2. 既定ブランチのビルドは、動作確認用 APK（テスト広告）を Release `android-latest` に載せます
+   - ダウンロード: `https://github.com/techgymjp/shinkansen/releases/latest/download/bousou-shinkansen.apk`
+3. GitHub Secrets に署名鍵（`ANDROID_KEYSTORE_BASE64` `ANDROID_KEYSTORE_PASSWORD` `ANDROID_KEY_ALIAS` `ANDROID_KEY_PASSWORD`）があれば、本番広告で署名付き AAB を作り、Artifact に上げます
+
+ローカルで Android Studio を使う場合:
+
+```sh
+npm ci
+npm run android:sync
+npm run android:open
+```
+
+### 広告 ID（未設定）
+
+AdMob でこのアプリを追加して広告ユニットを作ったら、次の 2 か所を本番の値にします。それまでは Google 公式のテスト ID が入っていて、本番ビルドでもテスト広告になります。
+
+- `android/app/src/main/res/values/strings.xml` の `admob_app_id`（アプリ ID `ca-app-pub-…~…`）
+- `js/ads.js` の `UNITS.production`（インタースティシャルとリワードの広告ユニット ID）
+
 ## 再現しているもの
 
 | 要素 | データの出どころ |
@@ -60,6 +99,12 @@ js/audio.js         走行音・効果音（WebAudio で合成）
 js/effects.js       大爆発エフェクト
 tools/              線路データ生成スクリプトと名所の座標
 vendor/             three.js r160 (MIT License)
+fonts/              数字用フォント DotGothic16 (SIL Open Font License)
+js/native.js        Android アプリのネイティブ機能 (戻るボタン・共有)
+js/ads.js           AdMob 広告 (Android アプリのみ)
+scripts/build-web.js  www/ へのコピーと ads-config.js / build-info.js の生成
+android/            Capacitor の Android プロジェクト
+assets/             アプリのアイコンと起動画面の元画像
 ```
 
 ### 線路データの再生成
@@ -72,3 +117,10 @@ python3 tools/build_route.py N02-19_RailroadSection.geojson N02-19_Station.geojs
 
 - 「国土数値情報（鉄道データ）」（国土交通省）を加工して作成 https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N02-v2_3.html
 - three.js (MIT License) https://threejs.org/
+
+## ライセンス
+
+著作権はテックジム株式会社に帰属します（All rights reserved）。許可なく複製・改変・再配布すること、Web サイトやアプリ（Google Play、App Store など）として公開・販売すること、名前・ロゴ・アイコン・画像を使うことを禁止します。
+テックジムの受講生が学習目的で複製・改変することは許可しますが、アプリストアでの公開、広告の掲載、販売などの商用利用は禁止し、著作権表示を残してください。詳しくは [LICENSE](LICENSE) を見てください。
+
+同梱している three.js（MIT License）と DotGothic16 フォント（SIL Open Font License）は、それぞれのライセンスに従います。線路データは国土数値情報（国土交通省）を加工したものです。

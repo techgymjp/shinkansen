@@ -10,6 +10,8 @@ import { Traffic, CROSS_WINDOW } from './trains.js';
 import { Sound } from './audio.js';
 import { Explosion } from './effects.js';
 import { canvasTex } from './models.js';
+import { isNative, onBackButton, exitApp, shareNative, canShareNative } from './native.js';
+import { Ads } from './ads.js';
 
 const MAX_KMH = 603;
 const $ = (id) => document.getElementById(id);
@@ -131,7 +133,14 @@ function fmtTime(sec) {
 $('btn-start').addEventListener('click', () => startGame());
 $('btn-continue').addEventListener('click', continueGame);
 $('btn-save').addEventListener('click', () => { saveGame(); toTitle(); });
-$('btn-again').addEventListener('click', () => { $('result').hidden = true; startGame(); });
+// 「もう一度」は 2 回に 1 回、全画面広告を挟む (アプリのみ)
+let retries = 0;
+$('btn-again').addEventListener('click', async () => {
+  retries++;
+  if (retries % 2 === 0) await Ads.showInterstitial();
+  $('result').hidden = true;
+  startGame();
+});
 $('btn-title').addEventListener('click', toTitle);
 $('btn-quit').addEventListener('click', () => { clearSave(); toTitle(); });
 $('btn-resume').addEventListener('click', togglePause);
@@ -185,10 +194,20 @@ function continueGame() {
   startGame(d);
 }
 window.addEventListener('pagehide', saveGame);
-document.addEventListener('visibilitychange', () => { if (document.hidden) saveGame(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    saveGame();
+    // 別アプリに切り替えたら自動で一時停止し、音も止める
+    if (['run', 'countdown', 'crash'].includes(state) && !Ads.showing) togglePause();
+    sound.suspend();
+  } else if (!Ads.showing) {
+    sound.resume();
+  }
+});
 showContinue();
 
 function startGame(resume) {
+  closeAdOffer();
   let from = +selFrom.value, to = +selTo.value;
   if (to <= from) {
     if (from === STATIONS.length - 1) { from = 0; }
@@ -201,7 +220,7 @@ function startGame(resume) {
   const dbgStart = parseFloat(q.get('start'));
   sound.init();
   sound.voice = $('chk-voice').checked;
-  Object.assign(P, { km: isNaN(dbgStart) ? course.startKm : dbgStart, v: +(q.get('speed') || 0), lat: LANE_OFF, accel: false, pending: null, changing: null, booms: 0, time: 0, passed: 0, maxV: 0 });
+  Object.assign(P, { km: isNaN(dbgStart) ? course.startKm : dbgStart, v: +(q.get('speed') || 0), lat: LANE_OFF, accel: false, pending: null, changing: null, booms: 0, time: 0, passed: 0, maxV: 0, rewardUsed: false });
   // 続きから: 位置と記録を戻し、速度0から再出発 (周りの列車は配置し直す)
   if (resume) Object.assign(P, { km: resume.km, v: 0, booms: resume.booms, time: resume.time, passed: resume.passed, maxV: resume.maxV });
   resumed = !!resume;
@@ -249,7 +268,24 @@ for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) tAccel.addEvent
 $('t-left').addEventListener('pointerdown', (e) => { requestLane(1); e.preventDefault(); });
 $('t-right').addEventListener('pointerdown', (e) => { requestLane(-1); e.preventDefault(); });
 document.querySelectorAll('#viewtabs button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
-const isTouch = matchMedia('(pointer: coarse)').matches;
+const isTouch = matchMedia('(pointer: coarse)').matches || isNative;
+document.body.classList.toggle('touchmode', isTouch);
+
+// 戻るボタン (アプリ): プレイ中は一時停止、一時停止中は再開、タイトルや結果画面ではアプリを終了
+onBackButton(() => {
+  if (Ads.showing) return;
+  if (adOffer) { declineAd(); return; }
+  if (['run', 'countdown', 'crash', 'pause'].includes(state)) togglePause();
+  else if (state === 'title' || state === 'finish') exitApp();
+});
+
+// 広告表示中はゲームの音を止める
+Ads.setHooks({ suspend: () => sound.suspend(), resume: () => sound.resume() });
+
+// タイトル画面のビルド番号と「広告の設定」(EU など同意が必要な地域のみ)
+$('build-info').textContent = window.APP_VERSION && window.APP_VERSION !== 'dev' ? window.APP_VERSION + '｜' : '';
+Ads.initDone.then(() => { $('ad-privacy').hidden = !Ads.privacyOptionsRequired; });
+$('ad-privacy-link').addEventListener('click', (e) => { e.preventDefault(); Ads.showPrivacyOptions(); });
 
 function setView(v) {
   view = v;
@@ -568,9 +604,53 @@ function crash(train) {
   if (window.speechSynthesis) speechSynthesis.cancel();
 }
 
-function respawn() {
+// 大破のあと、広告を見れば 300km/h から再出発できる (アプリのみ・1 回の運転で 1 回)
+let adOffer = null;
+function offerAd() {
+  if (!Ads.available || P.rewardUsed) return false;
+  adOffer = { t: 10, waiting: false };
+  $('crash').hidden = true;
+  $('ac-note').textContent = '';
+  $('ac-count').textContent = '10';
+  $('ac-watch').disabled = false;
+  $('adcont').hidden = false;
+  return true;
+}
+function tickAdOffer(dt) {
+  if (adOffer.waiting) return;
+  adOffer.t -= dt;
+  $('ac-count').textContent = String(Math.max(0, Math.ceil(adOffer.t)));
+  if (adOffer.t <= 0) declineAd();
+}
+function closeAdOffer() {
+  adOffer = null;
+  $('adcont').hidden = true;
+}
+function declineAd() {
+  closeAdOffer();
+  respawn();
+}
+$('ac-skip').addEventListener('click', () => { if (adOffer && !adOffer.waiting) declineAd(); });
+$('ac-watch').addEventListener('click', async () => {
+  if (!adOffer || adOffer.waiting) return;
+  adOffer.waiting = true;
+  $('ac-watch').disabled = true;
+  $('ac-note').textContent = '広告を読み込んでいます…';
+  const r = await Ads.showRewarded();
+  if (r === 'rewarded') {
+    P.rewardUsed = true;
+    closeAdOffer();
+    respawn(300);
+  } else {
+    adOffer.waiting = false;
+    $('ac-watch').disabled = r === 'unavailable';
+    $('ac-note').textContent = r === 'unavailable' ? '広告を読み込めませんでした' : '最後まで見ると 300km/h で再出発できます';
+  }
+});
+
+function respawn(speed = 0) {
   P.lat = LANE_OFF;
-  P.v = 0;
+  P.v = speed;
   traffic.clearAround(P.km);
   $('crash').hidden = true;
   state = 'countdown';
@@ -628,11 +708,14 @@ function setupShare(goalName, total) {
   $('share-line').href = `https://social-plugins.line.me/lineit/share?url=${u}&text=${t}`;
   $('share-fb').href = `https://www.facebook.com/sharer/sharer.php?u=${u}`;
   $('share-text').value = `${shareText} ${SHARE_URL}`;
-  $('share-native').hidden = !navigator.share;
+  // アプリでは Android の共有メニューを使う
+  $('share-native').hidden = !canShareNative();
+  $('share-native').textContent = isNative ? 'シェア' : 'その他';
+  for (const id of ['share-x', 'share-line', 'share-fb']) $(id).hidden = isNative;
   $('share-copy').textContent = 'リンクをコピー';
 }
 $('share-native').addEventListener('click', () => {
-  navigator.share({ title: '暴走新幹線', text: shareText, url: SHARE_URL }).catch(() => {});
+  shareNative({ title: '暴走新幹線', text: shareText, url: SHARE_URL });
 });
 $('share-copy').addEventListener('click', () => {
   const text = $('share-text').value;
@@ -771,7 +854,8 @@ function frame(now) {
   } else if (state === 'crash') {
     crashT += dt;
     traffic.update(simDt, P.km);
-    if (crashT > 4) respawn();
+    if (adOffer) tickAdOffer(dt);
+    else if (crashT > 4 && !offerAd()) respawn();
   } else if (state === 'finish') {
     P.v = Math.max(0, P.v - 120 * dt);
     traffic.update(simDt, P.km);

@@ -65,6 +65,15 @@ export class Sound {
     this.tunnel = 0;
   }
 
+  // 別アプリへの切り替えや広告の表示中は音を止める
+  suspend() {
+    if (this.ctx && this.ctx.state === 'running') this.ctx.suspend();
+    if (window.speechSynthesis) speechSynthesis.cancel();
+  }
+  resume() {
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  }
+
   setMuted(m) {
     this.muted = m;
     if (this.master) this.master.gain.setTargetAtTime(m ? 0 : 0.7, this.ctx.currentTime, 0.05);

@@ -1,3 +1,12 @@
+/* 速度計などの数字用フォント (アプリに同梱。オフラインでも表示できる) */
+@font-face {
+  font-family: 'DotGothic16';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(../fonts/dotgothic16-latin-400-normal.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+2000-206F, U+2191, U+2193, U+2212;
+}
 :root {
   --blue: #0b3c9c;
   --blue2: #1d5fd1;
@@ -164,3 +173,74 @@ td { text-align: right; font-family: var(--led-font); color: var(--led); font-si
 .share-text { width: 100%; margin-top: 10px; padding: 6px 8px; font-size: 12px; font-family: var(--font); color: #cfd8e3; background: #141c26; border: 1px solid #2a3340; border-radius: 6px; }
 .t-inner.small .share-row .sbtn { display: inline-flex; margin: 0; }
 .t-inner.small .share-row .sbtn[hidden] { display: none; }
+
+/* 操作説明: タッチ操作の端末ではボタン名で案内する */
+.howto .tc { display: none; }
+.touchmode .howto .tc { display: block; }
+.touchmode .howto .kb { display: none; }
+.legal { font-size: 12px; color: #7f8c9c; margin-top: 6px; }
+.legal a { color: #9cc0ff; }
+
+/* 広告を見て再出発 */
+#adcont { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); padding: 16px; }
+#adcont[hidden] { display: none; }
+.ac-card { max-width: 420px; width: 100%; background: rgba(8,14,24,0.92); border: 1px solid rgba(255,255,255,0.18); border-radius: 14px; padding: 18px 20px; text-align: center; }
+.ac-head { font-size: 20px; font-weight: 900; }
+.ac-lead { font-size: 13px; color: #cfd8e3; margin: 8px 0; }
+.ac-count { font-family: var(--led-font); font-size: 44px; color: var(--led); }
+.ac-note { font-size: 12px; color: #ffb4a8; min-height: 16px; margin: 0 0 6px; }
+.ac-btns { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.ac-btns button:not(.big) { background: none; border: 1px solid #4a5666; color: #cfd8e3; border-radius: 20px; padding: 8px 22px; font-size: 14px; }
+
+/* 横向きのスマホ (高さが小さい) */
+@media (orientation: landscape) and (max-height: 500px) {
+  .panel { padding: 4px 8px; border-radius: 8px; }
+  .panel .row { font-size: 11px; line-height: 1.35; }
+  .panel .lbl { font-size: 10px; min-width: 30px; }
+  .panel b { font-size: 15px; }
+  #info { top: 6px; left: max(8px, env(safe-area-inset-left, 0px)); min-width: 0; }
+  #info .course { font-size: 11px; }
+  #info .next b { font-size: 13px; }
+  #stats { top: 6px; right: max(8px, env(safe-area-inset-right, 0px)); min-width: 0; }
+  #viewtabs { top: 6px; }
+  #viewtabs button { padding: 4px 9px; font-size: 11px; }
+  #viewtabs kbd { display: none; }
+  #btn-mute, #btn-pause { top: 78px; width: 32px; height: 32px; font-size: 14px; }
+  #minimap { display: none; }
+  #dash { bottom: 4px; gap: 8px; transform: translateX(-50%) scale(0.56); transform-origin: 50% 100%; }
+  #telop { top: 14%; }
+  .t-band { padding: 6px 40px 8px; }
+  .t-main { font-size: 34px; }
+  .t-sub, .t-en { font-size: 11px; }
+  #announce { top: 34%; font-size: 13px; }
+  #alert { top: 46%; font-size: 22px; }
+  #touch button { bottom: max(12px, env(safe-area-inset-bottom, 0px)); width: 68px; height: 68px; font-size: 24px; }
+  #t-left { left: max(14px, env(safe-area-inset-left, 0px)); }
+  #t-right { left: calc(max(14px, env(safe-area-inset-left, 0px)) + 80px); }
+  #t-accel { right: max(14px, env(safe-area-inset-right, 0px)); width: 92px !important; height: 92px !important; font-size: 19px !important; }
+  .screen { align-items: flex-start; padding: 10px 16px; }
+  h1 { font-size: 46px; }
+  .tag { margin: 2px 0 10px; font-size: 13px; }
+  .form { margin-bottom: 10px; gap: 6px 12px; }
+  button.big { font-size: 20px; padding: 8px 36px; }
+  button.big.alt { font-size: 16px; padding: 6px 24px; }
+  .howto { margin-top: 10px; padding: 6px 14px; }
+  .howto ul { font-size: 12px; line-height: 1.6; }
+  .t-inner.small { padding: 12px 18px; }
+  #res-title { font-size: 22px; }
+  th, td { padding: 3px 4px; font-size: 13px; }
+  td { font-size: 15px; }
+  .share { margin-top: 8px; padding-top: 8px; }
+  .ac-card { padding: 10px 16px; }
+  .ac-count { font-size: 30px; }
+  /* 結果画面は 2 列にして 1 画面に収める */
+  #result .t-inner.small { max-width: 780px; display: grid; grid-template-columns: 1.1fr 1fr; column-gap: 18px; align-items: start; }
+  #result #res-title { grid-column: 1 / -1; }
+  #result table { grid-column: 1; grid-row: 2 / span 4; margin: 4px 0; }
+  #result #res-record, #result .share, #result #btn-again, #result #btn-title { grid-column: 2; }
+  #result #res-record { font-size: 13px; margin-top: 6px; }
+  #result .share { margin-top: 4px; border-top: none; padding-top: 0; }
+  #result .sbtn { min-width: 0; padding: 6px 12px; font-size: 13px; }
+  #result #btn-again { margin-top: 8px; }
+  #result #btn-title { margin-top: 6px; }
+}
