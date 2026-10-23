@@ -854,6 +854,7 @@ function updateEnvironment(dt) {
   // 大爆発のときはカメラが車外に出るので、運転台・客室の窓枠を外す
   const outside = state === 'crash' || (state === 'pause' && pausedFrom === 'crash');
   if ($('frame').hidden !== outside) $('frame').hidden = outside;
+  document.body.classList.toggle('crashing', outside);
 }
 
 // ---------------- メインループ ----------------

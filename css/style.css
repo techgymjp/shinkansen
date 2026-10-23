@@ -286,3 +286,17 @@ html[lang="en"] h1 { font-size: clamp(32px, 6.2vw, 72px); letter-spacing: 0.03em
 @media (orientation: landscape) and (max-height: 500px) {
   .screen { padding-top: calc(10px + var(--safe-top)); }
 }
+
+/* タッチ操作の端末 (タブレットなど) では、右下の加速ボタンと重ならないよう地図を左側に出す */
+.touchmode #minimap { right: auto; bottom: auto; left: 14px; top: 166px; width: 200px; height: 137px; }
+@media (orientation: landscape) and (max-height: 500px) {
+  .touchmode #minimap { left: 8px; top: 92px; width: 150px; height: 103px; }
+}
+@media (max-width: 760px) {
+  .touchmode #minimap { left: 8px; top: 160px; width: 150px; height: 103px; }
+}
+
+/* タッチ操作の端末ではキーボードの案内を出さない */
+.touchmode #viewtabs kbd { display: none; }
+/* 大爆発の演出中は計器盤とボタンを隠して、爆発と文字を見せる */
+.crashing #dash, .crashing #touch, .crashing #minimap { visibility: hidden; }
