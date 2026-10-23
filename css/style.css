@@ -199,16 +199,16 @@ td { text-align: right; font-family: var(--led-font); color: var(--led); font-si
   .panel .row { font-size: 11px; line-height: 1.35; }
   .panel .lbl { font-size: 10px; min-width: 30px; }
   .panel b { font-size: 15px; }
-  #info { top: 6px; left: max(8px, env(safe-area-inset-left, 0px)); min-width: 0; }
+  #info { top: 6px; left: 8px; min-width: 0; }
   #info .course { font-size: 11px; }
   #info .next b { font-size: 13px; }
-  #stats { top: 6px; right: max(8px, env(safe-area-inset-right, 0px)); min-width: 0; }
+  #stats { top: 6px; right: 8px; min-width: 0; }
   #viewtabs { top: 6px; }
   #viewtabs button { padding: 4px 9px; font-size: 11px; }
   #viewtabs kbd { display: none; }
   #btn-mute, #btn-pause { top: 78px; width: 32px; height: 32px; font-size: 14px; }
   /* 地図は小さくして左側 (情報パネルの下) に出す */
-  #minimap { display: block; left: max(8px, env(safe-area-inset-left, 0px)); right: auto; top: 92px; bottom: auto; width: 150px; height: 103px; border-radius: 8px; opacity: 0.92; }
+  #minimap { display: block; left: 8px; right: auto; top: 92px; bottom: auto; width: 150px; height: 103px; border-radius: 8px; opacity: 0.92; }
   #dash { bottom: 4px; gap: 8px; transform: translateX(-50%) scale(0.56); transform-origin: 50% 100%; }
   #telop { top: 14%; }
   .t-band { padding: 6px 40px 8px; }
@@ -216,10 +216,10 @@ td { text-align: right; font-family: var(--led-font); color: var(--led); font-si
   .t-sub, .t-en { font-size: 11px; }
   #announce { top: 34%; font-size: 13px; }
   #alert { top: 46%; font-size: 22px; }
-  #touch button { bottom: max(12px, env(safe-area-inset-bottom, 0px)); width: 68px; height: 68px; font-size: 24px; }
-  #t-left { left: max(14px, env(safe-area-inset-left, 0px)); }
-  #t-right { left: calc(max(14px, env(safe-area-inset-left, 0px)) + 80px); }
-  #t-accel { right: max(14px, env(safe-area-inset-right, 0px)); width: 92px !important; height: 92px !important; font-size: 19px !important; }
+  #touch button { bottom: 12px; width: 68px; height: 68px; font-size: 24px; }
+  #t-left { left: 14px; }
+  #t-right { left: 94px; }
+  #t-accel { right: 14px; width: 92px !important; height: 92px !important; font-size: 19px !important; }
   .screen { align-items: flex-start; padding: 10px 16px; }
   h1 { font-size: 46px; }
   .tag { margin: 2px 0 10px; font-size: 13px; }
@@ -264,3 +264,25 @@ html[lang="en"] h1 { font-size: clamp(32px, 6.2vw, 72px); letter-spacing: 0.03em
 /* 画面より中身が高いときは上から表示してスクロールする (中央寄せで上が切れないように) */
 .screen { align-items: flex-start; }
 .screen > .t-inner { margin-block: auto; }
+
+/* カメラの穴 (ディスプレイカットアウト) やノッチを避ける。
+   Android アプリでは Capacitor が --safe-area-inset-* を、ブラウザは env(safe-area-inset-*) を教えてくれる */
+:root {
+  --safe-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+  --safe-right: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+  --safe-left: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
+}
+/* 運転中の表示とタッチボタンは、安全な範囲の内側に並べる (背景の 3D と窓枠は画面いっぱいのまま) */
+#hud { top: var(--safe-top); right: var(--safe-right); bottom: var(--safe-bottom); left: var(--safe-left); }
+#touch { left: var(--safe-left); right: var(--safe-right); bottom: var(--safe-bottom); }
+.screen {
+  padding-top: calc(16px + var(--safe-top));
+  padding-left: calc(16px + var(--safe-left));
+  padding-right: calc(16px + var(--safe-right));
+  padding-bottom: calc(16px + max(var(--safe-bottom), var(--banner-h, 0px)));
+}
+#adcont { padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left)); }
+@media (orientation: landscape) and (max-height: 500px) {
+  .screen { padding-top: calc(10px + var(--safe-top)); }
+}
