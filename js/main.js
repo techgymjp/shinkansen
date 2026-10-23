@@ -141,11 +141,9 @@ function fmtTime(sec) {
 $('btn-start').addEventListener('click', () => startGame());
 $('btn-continue').addEventListener('click', continueGame);
 $('btn-save').addEventListener('click', () => { saveGame(); toTitle(); });
-// 「もう一度」は 2 回に 1 回、全画面広告を挟む (アプリのみ)
-let retries = 0;
+// 結果画面の「もう一度」で毎回、全画面広告を挟む (アプリのみ)
 $('btn-again').addEventListener('click', async () => {
-  retries++;
-  if (retries % 2 === 0) await Ads.showInterstitial();
+  await Ads.showInterstitial();
   $('result').hidden = true;
   startGame();
 });
