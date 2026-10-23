@@ -155,6 +155,7 @@ function toTitle() {
   $('title').hidden = false;
   loadBest();
   showContinue();
+  Ads.showBanner();
 }
 
 // ---------------- 中断セーブ ----------------
@@ -208,6 +209,7 @@ showContinue();
 
 function startGame(resume) {
   closeAdOffer();
+  Ads.hideBanner();
   let from = +selFrom.value, to = +selTo.value;
   if (to <= from) {
     if (from === STATIONS.length - 1) { from = 0; }
@@ -280,7 +282,13 @@ onBackButton(() => {
 });
 
 // 広告表示中はゲームの音を止める
-Ads.setHooks({ suspend: () => sound.suspend(), resume: () => sound.resume() });
+Ads.setHooks({
+  suspend: () => sound.suspend(),
+  resume: () => sound.resume(),
+  // バナーの高さだけ画面の下に余白を取り、ボタンと重ならないようにする
+  bannerHeight: (h) => document.documentElement.style.setProperty('--banner-h', `${h}px`),
+});
+Ads.showBanner(); // 起動時はタイトル画面
 
 // タイトル画面のビルド番号と「広告の設定」(EU など同意が必要な地域のみ)
 $('build-info').textContent = window.APP_VERSION && window.APP_VERSION !== 'dev' ? window.APP_VERSION + '｜' : '';
@@ -691,6 +699,7 @@ function finish() {
     $('res-record').innerHTML = lines.filter(Boolean).map((l) => `<div>${l}</div>`).join('');
     setupShare(st.name, total);
     $('result').hidden = false;
+    Ads.showBanner();
     $('hud').hidden = true;
     $('touch').hidden = true;
   }, 2500);

@@ -4,6 +4,6 @@
     <string name="title_activity_main">暴走新幹線</string>
     <string name="package_name">jp.techgym.shinkansen</string>
     <string name="custom_url_scheme">jp.techgym.shinkansen</string>
-    <!-- Google AdMob のアプリ ID。本番の ID をもらったら差し替える (いまは Google 公式のテスト用) -->
-    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+    <!-- Google AdMob のアプリ ID -->
+    <string name="admob_app_id">ca-app-pub-6411535997477460~4090793328</string>
 </resources>

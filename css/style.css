@@ -244,3 +244,6 @@ td { text-align: right; font-family: var(--led-font); color: var(--led); font-si
   #result #btn-again { margin-top: 8px; }
   #result #btn-title { margin-top: 6px; }
 }
+
+/* バナー広告 (アプリのタイトル画面・結果画面) の高さだけ下に余白を取る */
+.screen { padding-bottom: calc(16px + var(--banner-h, 0px)); }

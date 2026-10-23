@@ -3,13 +3,15 @@
 const UNITS = {
   // Google 公式のテスト用広告ユニット
   test: {
+    banner: 'ca-app-pub-3940256099942544/9214589741',
     interstitial: 'ca-app-pub-3940256099942544/1033173712',
     rewarded: 'ca-app-pub-3940256099942544/5224354917',
   },
-  // 本番の広告ユニット (AdMob で作成したら入れる。空のあいだは本番ビルドでもテスト広告を使う)
+  // 本番の広告ユニット (空のものは本番ビルドでもテスト広告を使う)
   production: {
-    interstitial: '',
-    rewarded: '',
+    banner: 'ca-app-pub-6411535997477460/1320325600',
+    interstitial: 'ca-app-pub-6411535997477460/8578375236',
+    rewarded: 'ca-app-pub-6411535997477460/7962675445',
   },
 };
 const RETRY_MS = 20000; // 読み込みに失敗したら少し待って再挑戦する
@@ -17,19 +19,23 @@ const RETRY_MS = 20000; // 読み込みに失敗したら少し待って再挑�
 const cap = window.Capacitor;
 const native = !!(cap && cap.isNativePlatform && cap.isNativePlatform());
 const AdMob = native && cap.Plugins ? cap.Plugins.AdMob : null;
-const hasProduction = !!(UNITS.production.interstitial && UNITS.production.rewarded);
-const testing = window.AD_MODE !== 'production' || !hasProduction;
-const ids = testing ? UNITS.test : UNITS.production;
+// 広告の種類ごとに、本番 ID があり本番ビルドのときだけ本番の広告を使う
+const productionBuild = window.AD_MODE === 'production';
+const unit = (kind) => {
+  const prod = productionBuild && UNITS.production[kind];
+  return { adId: prod || UNITS.test[kind], isTesting: !prod };
+};
+const testing = !productionBuild;
 
 let ready = false; // 広告をリクエストしてよい状態 (初期化と同意確認が済んだ)
 let showing = false;
 let privacyRequired = false; // 「広告の設定」を利用者が開けるようにする必要があるか (EU など)
 const waiters = {};
-let hooks = { suspend() {}, resume() {} }; // 広告表示中はゲームの音を止める
+let hooks = { suspend() {}, resume() {}, bannerHeight() {} }; // 広告表示中はゲームの音を止める
 
 const slots = {
-  inter: { loaded: false, pending: null, load: () => AdMob.prepareInterstitial({ adId: ids.interstitial, isTesting: testing }) },
-  reward: { loaded: false, pending: null, load: () => AdMob.prepareRewardVideoAd({ adId: ids.rewarded, isTesting: testing }) },
+  inter: { loaded: false, pending: null, load: () => AdMob.prepareInterstitial(unit('interstitial')) },
+  reward: { loaded: false, pending: null, load: () => AdMob.prepareRewardVideoAd(unit('rewarded')) },
 };
 
 function prepare(kind) {
@@ -81,6 +87,10 @@ async function init() {
   AdMob.addListener('onRewardedVideoAdReward', () => { rewarded = true; });
   AdMob.addListener('onRewardedVideoAdDismissed', () => finish('reward', rewarded));
   AdMob.addListener('onRewardedVideoAdFailedToShow', () => finish('reward', false));
+  AdMob.addListener('bannerAdSizeChanged', (size) => {
+    bannerH = size && size.height ? size.height : 0;
+    if (bannerState === 'shown') hooks.bannerHeight(bannerH);
+  });
   prepare('inter');
   prepare('reward');
 }
@@ -113,6 +123,42 @@ async function showRewarded() {
   });
 }
 
+// バナー: タイトル画面と結果画面の下端にだけ出す (運転中は操作ボタンと重なるので出さない)
+let bannerState = 'none'; // none | shown | hidden
+let bannerWanted = false;
+let bannerBusy = false;
+let bannerH = 0;
+async function syncBanner() {
+  if (!AdMob || bannerBusy) return;
+  await initDone;
+  if (!ready) return;
+  bannerBusy = true;
+  try {
+    if (bannerWanted && bannerState !== 'shown') {
+      if (bannerState === 'none') {
+        await AdMob.showBanner({ ...unit('banner'), adSize: 'ADAPTIVE_BANNER', position: 'BOTTOM_CENTER', margin: 0 });
+      } else {
+        await AdMob.resumeBanner();
+      }
+      bannerState = 'shown';
+      hooks.bannerHeight(bannerH);
+    } else if (!bannerWanted && bannerState === 'shown') {
+      await AdMob.hideBanner();
+      bannerState = 'hidden';
+      hooks.bannerHeight(0);
+    }
+  } catch (e) {
+    if (bannerState !== 'hidden') bannerState = 'none';
+    if (bannerWanted) setTimeout(syncBanner, RETRY_MS);
+  } finally {
+    bannerBusy = false;
+  }
+  // 処理中に表示・非表示の指示が変わっていたら合わせ直す
+  if ((bannerWanted && bannerState !== 'shown') || (!bannerWanted && bannerState === 'shown')) syncBanner();
+}
+function showBanner() { bannerWanted = true; syncBanner(); }
+function hideBanner() { bannerWanted = false; hooks.bannerHeight(0); syncBanner(); }
+
 // 同意した内容をあとから変更するための Google のフォームを開く
 function showPrivacyOptions() {
   if (!AdMob) return Promise.resolve();
@@ -127,5 +173,7 @@ export const Ads = {
   initDone,
   showInterstitial,
   showRewarded,
+  showBanner,
+  hideBanner,
   showPrivacyOptions,
 };

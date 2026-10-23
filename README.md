@@ -40,6 +40,7 @@ JET STRIKE（techgymjp/jet-fighter）と同じ構成で、Capacitor を使って
 - 別のアプリに切り替えると自動で一時停止し、音を止める
 - 結果のシェアは Android の共有メニュー
 - 広告（AdMob）
+  - バナー: タイトル画面と結果画面の下端だけ（運転中は操作ボタンと重なるので出さない）。バナーの高さだけ画面の下に余白を取る
   - インタースティシャル: 結果画面で「もう一度」を押したとき、2 回に 1 回
   - リワード: 大爆発したあと「広告を見て 300km/h から再出発」（1 回の運転で 1 回、10 秒で自動的に速度 0 から再出発）。大爆発の回数とペナルティは変わりません
   - 起動時に Google の同意確認（UMP）。EU など必要な地域ではタイトルに「広告の設定」を表示
@@ -65,12 +66,12 @@ npm run android:sync
 npm run android:open
 ```
 
-### 広告 ID（未設定）
+### 広告 ID
 
-AdMob でこのアプリを追加して広告ユニットを作ったら、次の 2 か所を本番の値にします。それまでは Google 公式のテスト ID が入っていて、本番ビルドでもテスト広告になります。
+- アプリ ID: `android/app/src/main/res/values/strings.xml` の `admob_app_id`
+- 広告ユニット ID: `js/ads.js` の `UNITS.production`（バナー・インタースティシャル・リワード）
 
-- `android/app/src/main/res/values/strings.xml` の `admob_app_id`（アプリ ID `ca-app-pub-…~…`）
-- `js/ads.js` の `UNITS.production`（インタースティシャルとリワードの広告ユニット ID）
+本番の広告は、Google Play 用のビルド（`ADMOB_MODE=production`）のときだけ使います。動作確認用 APK はいつもテスト広告です。`UNITS.production` が空の種類は、本番ビルドでもテスト広告になります。
 
 ## 再現しているもの
 
