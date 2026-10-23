@@ -52,6 +52,9 @@ JET STRIKE（techgymjp/jet-fighter）と同じ構成で、Capacitor を使って
 1. `npm ci` → `npm run build` → `npx cap sync android` → `./gradlew assembleDebug`
 2. 既定ブランチのビルドは、動作確認用 APK（テスト広告）を Release `android-latest` に載せます
    - ダウンロード: `https://github.com/techgymjp/shinkansen/releases/latest/download/bousou-shinkansen.apk`
+
+     <img src="docs/apk-qr.png" alt="APK ダウンロードの QR コード" width="180">
+
 3. GitHub Secrets に署名鍵（`ANDROID_KEYSTORE_BASE64` `ANDROID_KEYSTORE_PASSWORD` `ANDROID_KEY_ALIAS` `ANDROID_KEY_PASSWORD`）があれば、本番広告で署名付き AAB を作り、Artifact に上げます
 
 ローカルで Android Studio を使う場合:
