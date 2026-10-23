@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <!-- 端末の言語が英語のときのアプリ名 -->
+    <string name="app_name">Runaway Shinkansen</string>
+    <string name="title_activity_main">Runaway Shinkansen</string>
+</resources>

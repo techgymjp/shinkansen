@@ -13,10 +13,10 @@ export function exitApp() {
 }
 
 // Android の共有メニューを出す。使えなければ false
-export async function shareNative({ title, text, url }) {
+export async function shareNative({ title, text, url, dialogTitle }) {
   if (plugins.Share) {
     try {
-      await plugins.Share.share({ title, text, url, dialogTitle: '結果をシェア' });
+      await plugins.Share.share({ title, text, url, dialogTitle });
     } catch (e) {
       // 共有メニューを閉じただけのときもここに来る
     }

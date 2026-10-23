@@ -177,10 +177,10 @@ export class Sound {
   }
 
   // 車内放送 (音声合成)
-  say(text) {
+  say(text, lang = 'ja-JP') {
     if (this.muted || !this.voice || !window.speechSynthesis) return;
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ja-JP';
+    u.lang = lang;
     u.rate = 1.05;
     speechSynthesis.cancel();
     speechSynthesis.speak(u);

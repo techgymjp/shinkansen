@@ -247,3 +247,14 @@ td { text-align: right; font-family: var(--led-font); color: var(--led); font-si
 
 /* バナー広告 (アプリのタイトル画面・結果画面) の高さだけ下に余白を取る */
 .screen { padding-bottom: calc(16px + var(--banner-h, 0px)); }
+
+/* 言語の切り替え */
+.langsel { display: flex; justify-content: center; gap: 8px; margin: 0 0 14px; }
+.langbtn { font-family: var(--font); font-size: 13px; padding: 5px 16px; border-radius: 16px; background: rgba(20,28,38,0.8); border: 1px solid #4a5666; color: #cfd8e3; }
+.langbtn.on { background: var(--blue2); border-color: #7fb0ff; color: #fff; font-weight: 700; }
+html[lang="en"] h1 { font-size: clamp(32px, 6.2vw, 72px); letter-spacing: 0.03em; }
+@media (orientation: landscape) and (max-height: 500px) {
+  .langsel { margin-bottom: 8px; }
+  .langbtn { font-size: 12px; padding: 3px 12px; }
+  html[lang="en"] h1 { font-size: 34px; }
+}

@@ -45,6 +45,7 @@ JET STRIKE（techgymjp/jet-fighter）と同じ構成で、Capacitor を使って
   - リワード: 大爆発したあと「広告を見て 300km/h から再出発」（1 回の運転で 1 回、10 秒で自動的に速度 0 から再出発）。大爆発の回数とペナルティは変わりません
   - 起動時に Google の同意確認（UMP）。EU など必要な地域ではタイトルに「広告の設定」を表示
 - タイトル画面にビルド番号とプライバシーポリシーへのリンク
+- 日本語と英語に対応（端末の言語が日本語なら日本語、それ以外は英語。タイトル画面で切り替え可能）。英語の端末ではアプリ名も「Runaway Shinkansen」
 
 ### ビルド
 
@@ -105,6 +106,7 @@ tools/              線路データ生成スクリプトと名所の座標
 vendor/             three.js r160 (MIT License)
 fonts/              数字用フォント DotGothic16 (SIL Open Font License)
 js/native.js        Android アプリのネイティブ機能 (戻るボタン・共有)
+js/i18n.js          日本語 / 英語の表示文言と、名所・川・トンネルの英語名
 js/ads.js           AdMob 広告 (Android アプリのみ)
 scripts/build-web.js  www/ へのコピーと ads-config.js / build-info.js の生成
 android/            Capacitor の Android プロジェクト

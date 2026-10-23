@@ -12,6 +12,7 @@ import { Explosion } from './effects.js';
 import { canvasTex } from './models.js';
 import { isNative, onBackButton, exitApp, shareNative, canShareNative } from './native.js';
 import { Ads } from './ads.js';
+import { t, apply as applyLang, setLang, onLangChange, nameOf, stationName, getLang } from './i18n.js';
 
 const MAX_KMH = 603;
 const $ = (id) => document.getElementById(id);
@@ -102,9 +103,16 @@ let autosaveT = 0;
 // ---------------- タイトル画面 ----------------
 const selFrom = $('sel-from'), selTo = $('sel-to');
 STATIONS.forEach((s, i) => {
-  selFrom.add(new Option(`${s.name}（${s.km.toFixed(1)}km）`, i));
-  selTo.add(new Option(`${s.name}（${s.km.toFixed(1)}km）`, i));
+  selFrom.add(new Option('', i));
+  selTo.add(new Option('', i));
 });
+function labelStations() {
+  STATIONS.forEach((s, i) => {
+    const label = t('station.opt', { name: stationName(s), km: s.km.toFixed(1) });
+    selFrom.options[i].text = label;
+    selTo.options[i].text = label;
+  });
+}
 selFrom.value = 0;
 selTo.value = STATIONS.length - 1;
 // 記録は2部門: タイム部門 (大爆発1回につき +3分) と 無事故部門 (大爆発0回のみ)
@@ -115,11 +123,11 @@ function readRecord(cat) {
   try { return JSON.parse(localStorage.getItem(recordKey(cat)) || 'null'); } catch { return null; }
 }
 function loadBest() {
-  const t = readRecord('time'), c = readRecord('clean');
+  const tr = readRecord('time'), c = readRecord('clean');
   const parts = [];
-  if (t) parts.push(`タイム部門 ${fmtTime(t.time)}（大爆発 ${t.booms}回）`);
-  if (c) parts.push(`無事故部門 ${fmtTime(c.time)}`);
-  $('best').textContent = parts.length ? 'この区間の記録: ' + parts.join('　') : '';
+  if (tr) parts.push(t('best.time', { t: fmtTime(tr.time), n: tr.booms }));
+  if (c) parts.push(t('best.clean', { t: fmtTime(c.time) }));
+  $('best').textContent = parts.length ? t('best.prefix') + parts.join('　') : '';
 }
 for (const el of [selFrom, selTo, $('sel-scale')]) el.addEventListener('change', loadBest);
 loadBest();
@@ -182,7 +190,7 @@ function showContinue() {
   if (!d) return;
   const near = STATIONS.reduce((a, b) => (Math.abs(b.km - d.km) < Math.abs(a.km - d.km) ? b : a));
   $('continue-info').textContent =
-    `${STATIONS[d.from].name}→${STATIONS[d.to].name}　${near.name}付近 ${d.km.toFixed(1)}km・${fmtTime(d.time + d.booms * PENALTY_SEC)}`;
+    t('cont.info', { from: stationName(STATIONS[d.from]), to: stationName(STATIONS[d.to]), near: stationName(near), km: d.km.toFixed(1), t: fmtTime(d.time + d.booms * PENALTY_SEC) });
 }
 function continueGame() {
   const d = readSave();
@@ -235,7 +243,7 @@ function startGame(resume) {
   world.setOrigin(s.x, s.z);
   traffic.setPlayer(P);
   traffic.reset(P.km, course.goalKm);
-  $('hud-course').textContent = `${STATIONS[from].name} → ${STATIONS[to].name}`;
+  $('hud-course').textContent = `${stationName(STATIONS[from])} → ${stationName(STATIONS[to])}`;
   $('title').hidden = true;
   $('loading').textContent = '';
   state = 'loading';
@@ -320,13 +328,13 @@ function requestLane(toSign) {
   const c = traffic.nextCrossover(P.km);
   const d = c ? c.km - P.km : 99;
   if (!c || d > CROSS_WINDOW) {
-    flashAlert(d < 0.6 ? 'まだ早い!' : 'ポイントがありません', false, 700);
+    flashAlert(d < 0.6 ? t('alert.early') : t('alert.noPoint'), false, 700);
     sound.beep();
     return;
   }
-  if (d < -0.06) { flashAlert('間に合わない!', false, 700); return; }
+  if (d < -0.06) { flashAlert(t('alert.late'), false, 700); return; }
   P.pending = { c, toSign };
-  flashAlert(toSign < 0 ? 'ポイント切替 ▶ 上り線へ' : '◀ 下り線へ ポイント切替', true, 900);
+  flashAlert(toSign < 0 ? t('alert.toUp') : t('alert.toDown'), true, 900);
 }
 
 // ---------------- HUD ----------------
@@ -339,13 +347,13 @@ function flashAlert(text, good, ms = 1200) {
 }
 let telopTimer = 0;
 function telop(sub, main, en) {
-  const t = $('telop');
+  const tel = $('telop');
   $('telop-sub').textContent = sub;
   $('telop-main').textContent = main;
   $('telop-en').textContent = en || '';
-  t.className = '';
-  void t.offsetWidth;
-  t.className = 'show';
+  tel.className = '';
+  void tel.offsetWidth;
+  tel.className = 'show';
   telopTimer = 3.8;
 }
 const annQueue = [];
@@ -422,13 +430,25 @@ mmBg.width = 320; mmBg.height = 220;
     const [px, py] = mmT(p.x, p.z);
     g.beginPath(); g.arc(px, py, 2.2, 0, Math.PI * 2); g.fill();
   }
+}
+// ミニマップの主要駅名 (言語を切り替えたら描き直す)
+const mmBase = document.createElement('canvas');
+mmBase.width = 320; mmBase.height = 220;
+mmBase.getContext('2d').drawImage(mmBg, 0, 0);
+function labelMinimap() {
+  const g = mmBg.getContext('2d');
+  g.clearRect(0, 0, 320, 220);
+  g.drawImage(mmBase, 0, 0);
   g.font = 'bold 13px sans-serif';
   g.fillStyle = '#cfd8e3';
   for (const n of ['東京', '名古屋', '新大阪', '広島', '博多']) {
     const s = STATIONS.find((x) => x.name === n);
     const p = sample(s.km);
     const [px, py] = mmT(p.x, p.z);
-    g.fillText(n, px - 14, py + (n === '東京' || n === '名古屋' ? -8 : 16));
+    const label = stationName(s);
+    const w = g.measureText(label).width;
+    const x = Math.min(320 - w - 2, Math.max(2, px - w / 2));
+    g.fillText(label, x, py + (n === '東京' || n === '名古屋' ? -8 : 16));
   }
 }
 function drawMinimap() {
@@ -454,9 +474,9 @@ function updateHud() {
   $('hud-dist').textContent = (P.km - course.startKm).toFixed(1);
   $('hud-remain').textContent = Math.max(0, course.goalKm - P.km).toFixed(1);
   const ns = nextStation(P.km);
-  if (ns) { $('hud-next').textContent = ns.name; $('hud-nextd').textContent = (ns.km - P.km).toFixed(1) + 'km'; }
+  if (ns) { $('hud-next').textContent = stationName(ns); $('hud-nextd').textContent = (ns.km - P.km).toFixed(1) + 'km'; }
   $('hud-time').textContent = fmtTime(totalTime());
-  $('hud-pen').textContent = P.booms ? `(+${P.booms * 3}分)` : '';
+  $('hud-pen').textContent = P.booms ? t('hud.pen', { n: P.booms * 3 }) : '';
   const clock = 6 * 3600 + P.time;
   $('hud-clock').textContent = `${String(Math.floor(clock / 3600) % 24).padStart(2, '0')}:${String(Math.floor(clock / 60) % 60).padStart(2, '0')}`;
   $('hud-boom').textContent = P.booms;
@@ -468,7 +488,7 @@ function updateHud() {
   const arrow = $('pb-arrow');
   if (c) {
     const d = c.km - P.km;
-    $('pb-dist').textContent = d > 0 ? `${Math.round(d * 1000)}m` : '通過中';
+    $('pb-dist').textContent = d > 0 ? `${Math.round(d * 1000)}m` : t('hud.passing');
     arrow.textContent = laneSign() > 0 ? '▶' : '◀';
     arrow.className = d <= CROSS_WINDOW && d > -0.06 ? 'go' : d < 0.6 ? 'near' : '';
     $('pb-bar').firstElementChild.style.width = `${Math.max(0, Math.min(100, (1 - d / 1.2) * 100))}%`;
@@ -478,7 +498,7 @@ function updateHud() {
   const pt = $('pb-train');
   if (ln && ln.dist < 6) {
     const onc = ln.train.dir < 0;
-    pt.innerHTML = onc ? `<span class="danger">対向列車 ${ln.dist.toFixed(1)}km</span>` : `先行のぞみ ${ln.dist.toFixed(1)}km`;
+    pt.innerHTML = onc ? `<span class="danger">${t('hud.onc', { d: ln.dist.toFixed(1) })}</span>` : t('hud.ahead', { d: ln.dist.toFixed(1) });
   } else pt.textContent = '';
 
   // 線路図
@@ -507,24 +527,30 @@ function updateHud() {
 
 // ---------------- 沿線案内 (車掌放送) ----------------
 const EVENTS = [];
-for (const s of STATIONS) EVENTS.push({ km: s.km - 2.0, key: 'near:' + s.name, fn: () => announce(`まもなく ${s.name} を通過します`, `まもなく、${s.kana}を、通過します`), st: s });
+const plainName = (n) => n.replace(/[（(].*?[）)]/, '').trim();
+const voiceLang = () => t('voice.lang');
+for (const s of STATIONS) {
+  EVENTS.push({ km: s.km - 2.0, key: 'near:' + s.name, st: s, fn: () => announce(t('ann.near', { st: stationName(s) }), t('voice.near', { kana: s.kana, name: s.en })) });
+}
 for (const l of LANDMARKS) {
   if (l.type === 'river') continue;
-  if (l.type === 'lake') { EVENTS.push({ km: l.km - 1.2, key: 'lm:' + l.name, fn: () => announce(`両側に ${l.name} が広がります`, `両側に、${l.name}が広がります`) }); continue; }
-  const side = l.off > 0 ? '左手' : '右手';
+  if (l.type === 'lake') {
+    EVENTS.push({ km: l.km - 1.2, key: 'lm:' + l.name, fn: () => announce(t('ann.lake', { name: nameOf(l.name) }), t('voice.lake', { name: plainName(nameOf(l.name)) })) });
+    continue;
+  }
+  const side = l.off > 0 ? 'L' : 'R';
   const lead = l.type === 'fuji' ? 22 : l.type === 'mountain' || l.type === 'mountaincastle' ? 4 : 0.9;
-  EVENTS.push({ km: l.km - lead, key: 'lm:' + l.name, fn: () => announce(`${side}に ${l.name} が見えます`, `${side}に、${l.name.replace(/（.*?）/, '')}が見えます`) });
+  EVENTS.push({ km: l.km - lead, key: 'lm:' + l.name, fn: () => announce(t('ann.see', { side: t('side.' + side), name: nameOf(l.name) }), t('voice.see', { side: t('side.' + side), name: plainName(nameOf(l.name)) })) });
 }
 for (const w of WATER) {
-  const side = w[2] === 'L' ? '左手' : w[2] === 'R' ? '右手' : '両側';
-  EVENTS.push({ km: w[0] + 0.3, key: 'w:' + w[3], fn: () => announce(`${side}に ${w[3]}`, null) });
+  EVENTS.push({ km: w[0] + 0.3, key: 'w:' + w[3], fn: () => announce(t('ann.water', { side: t('side.' + w[2]), name: nameOf(w[3]) }), null) });
 }
 for (const r of RIVER_LIST) {
-  EVENTS.push({ km: r.km - r.len / 2 - 0.05, key: 'r:' + r.name, fn: () => announce(`${r.name}橋梁　${Math.round(r.len * 1000).toLocaleString()}m${r.truss ? '（トラス橋）' : ''}`, null) });
+  EVENTS.push({ km: r.km - r.len / 2 - 0.05, key: 'r:' + r.name, fn: () => announce(t('ann.bridge', { name: nameOf(r.name), m: Math.round(r.len * 1000).toLocaleString() }) + (r.truss ? t('ann.truss') : ''), null) });
 }
-for (const t of TUNNEL_LIST) {
-  if (!t.name) continue;
-  EVENTS.push({ km: t.a - 0.02, key: 't:' + t.name, fn: () => announce(`${t.name}　${Math.round((t.b - t.a) * 1000).toLocaleString()}m`, null) });
+for (const tn of TUNNEL_LIST) {
+  if (!tn.name) continue;
+  EVENTS.push({ km: tn.a - 0.02, key: 't:' + tn.name, fn: () => announce(t('ann.tunnel', { name: nameOf(tn.name), m: Math.round((tn.b - tn.a) * 1000).toLocaleString() }), null) });
 }
 EVENTS.sort((a, b) => a.km - b.km);
 
@@ -540,7 +566,7 @@ function checkEvents(prev, cur) {
   // 駅通過テロップ
   for (const s of STATIONS) {
     if (s.km > prev && s.km <= cur && s.km > course.startKm && s.km < course.goalKm) {
-      telop(`東京から ${s.km.toFixed(1)}km　${$('hud-clock').textContent} 通過`, s.name, s.en);
+      telop(t('telop.pass', { km: s.km.toFixed(1), clock: $('hud-clock').textContent }), stationName(s), getLang() === 'en' ? s.name : s.en);
       sound.chime();
     }
   }
@@ -601,7 +627,7 @@ function crash(train) {
   traffic.clearAround(P.km);
   sound.explosion();
   $('crash').hidden = false;
-  $('crash-sub').textContent = `${P.booms}回目の大破　速度 ${Math.round(P.v)}km/h で衝突　ペナルティ +3:00`;
+  $('crash-sub').textContent = t('crash.sub', { n: P.booms, v: Math.round(P.v) });
   $('flash').style.transition = 'none';
   $('flash').style.opacity = 1;
   requestAnimationFrame(() => { $('flash').style.transition = 'opacity 1.5s'; $('flash').style.opacity = 0; });
@@ -643,7 +669,7 @@ $('ac-watch').addEventListener('click', async () => {
   if (!adOffer || adOffer.waiting) return;
   adOffer.waiting = true;
   $('ac-watch').disabled = true;
-  $('ac-note').textContent = '広告を読み込んでいます…';
+  $('ac-note').textContent = t('ac.loading');
   const r = await Ads.showRewarded();
   if (r === 'rewarded') {
     P.rewardUsed = true;
@@ -652,7 +678,7 @@ $('ac-watch').addEventListener('click', async () => {
   } else {
     adOffer.waiting = false;
     $('ac-watch').disabled = r === 'unavailable';
-    $('ac-note').textContent = r === 'unavailable' ? '広告を読み込めませんでした' : '最後まで見ると 300km/h で再出発できます';
+    $('ac-note').textContent = r === 'unavailable' ? t('ac.fail') : t('ac.skipped');
   }
 });
 
@@ -664,7 +690,7 @@ function respawn(speed = 0) {
   state = 'countdown';
   countT = 2.2;
   $('countdown').hidden = false;
-  $('countdown').textContent = '再出発!';
+  $('countdown').textContent = t('cd.restart');
 }
 
 function finish() {
@@ -672,9 +698,9 @@ function finish() {
   clearSave();
   P.km = course.goalKm;
   const st = STATIONS[course.to];
-  telop(`${fmtTime(totalTime())}　大爆発 ${P.booms}回`, `${st.name} 到着`, st.en);
+  telop(t('telop.arrive', { t: fmtTime(totalTime()), n: P.booms }), t('telop.arriveMain', { st: stationName(st) }), getLang() === 'en' ? st.name : st.en);
   sound.chime();
-  sound.say(`${st.kana}に到着しました`);
+  sound.say(t('voice.arrive', { kana: st.kana, name: st.en }), voiceLang());
   const debugRun = /[?&](start|speed)=/.test(location.search);
   const total = totalTime();
   const recT = readRecord('time'), recC = readRecord('clean');
@@ -685,19 +711,19 @@ function finish() {
     if (newC) localStorage.setItem(recordKey('clean'), JSON.stringify({ time: P.time }));
   } catch {}
   setTimeout(() => {
-    $('res-title').textContent = `${st.name} 到着!`;
-    $('res-course').textContent = `${STATIONS[course.from].name} → ${st.name}（${(course.goalKm - course.startKm).toFixed(1)}km）`;
+    $('res-title').textContent = t('res.title', { st: stationName(st) });
+    $('res-course').textContent = t('res.courseV', { from: stationName(STATIONS[course.from]), to: stationName(st), km: (course.goalKm - course.startKm).toFixed(1) });
     $('res-run').textContent = fmtTime(P.time);
-    $('res-boom').textContent = `${P.booms} 回（+${fmtTime(P.booms * PENALTY_SEC)}）`;
+    $('res-boom').textContent = t('res.boomV', { n: P.booms, p: fmtTime(P.booms * PENALTY_SEC) });
     $('res-time').textContent = fmtTime(total);
-    $('res-pass').textContent = `${P.passed} 本`;
+    $('res-pass').textContent = t('res.passV', { n: P.passed });
     $('res-max').textContent = `${Math.round(P.maxV)} km/h`;
     const lines = [];
-    lines.push(newT ? '★ タイム部門 記録更新!' : recT ? `タイム部門 記録: ${fmtTime(recT.time)}` : '');
-    if (P.booms === 0) lines.push(newC ? '★ 無事故部門 記録更新!' : recC ? `無事故部門 記録: ${fmtTime(recC.time)}` : '');
-    else lines.push('無事故部門は大爆発0回で記録されます');
+    lines.push(newT ? t('res.newTime') : recT ? t('res.recTime', { t: fmtTime(recT.time) }) : '');
+    if (P.booms === 0) lines.push(newC ? t('res.newClean') : recC ? t('res.recClean', { t: fmtTime(recC.time) }) : '');
+    else lines.push(t('res.cleanNote'));
     $('res-record').innerHTML = lines.filter(Boolean).map((l) => `<div>${l}</div>`).join('');
-    setupShare(st.name, total);
+    setupShare(stationName(st), total);
     $('result').hidden = false;
     Ads.showBanner();
     $('hud').hidden = true;
@@ -709,27 +735,27 @@ function finish() {
 const SHARE_URL = 'https://techgym.jp/column/claude-code-game-shinkansen/';
 let shareText = '';
 function setupShare(goalName, total) {
-  const from = STATIONS[course.from].name;
-  const boom = P.booms === 0 ? '大爆発ゼロの無事故運転' : `大爆発${P.booms}回`;
-  shareText = `暴走新幹線で${from}→${goalName}（${(course.goalKm - course.startKm).toFixed(1)}km）を${fmtTime(total)}で走破！${boom}、最高${Math.round(P.maxV)}km/h #暴走新幹線`;
-  const t = encodeURIComponent(shareText), u = encodeURIComponent(SHARE_URL);
-  $('share-x').href = `https://twitter.com/intent/tweet?text=${t}&url=${u}`;
-  $('share-line').href = `https://social-plugins.line.me/lineit/share?url=${u}&text=${t}`;
+  const from = stationName(STATIONS[course.from]);
+  const boom = P.booms === 0 ? t('share.boomZero') : t('share.boomN', { n: P.booms });
+  shareText = t('share.text', { from, to: goalName, km: (course.goalKm - course.startKm).toFixed(1), t: fmtTime(total), boom, v: Math.round(P.maxV) });
+  const txt = encodeURIComponent(shareText), u = encodeURIComponent(SHARE_URL);
+  $('share-x').href = `https://twitter.com/intent/tweet?text=${txt}&url=${u}`;
+  $('share-line').href = `https://social-plugins.line.me/lineit/share?url=${u}&text=${txt}`;
   $('share-fb').href = `https://www.facebook.com/sharer/sharer.php?u=${u}`;
   $('share-text').value = `${shareText} ${SHARE_URL}`;
   // アプリでは Android の共有メニューを使う
   $('share-native').hidden = !canShareNative();
-  $('share-native').textContent = isNative ? 'シェア' : 'その他';
+  $('share-native').textContent = isNative ? t('share.native') : t('share.other');
   for (const id of ['share-x', 'share-line', 'share-fb']) $(id).hidden = isNative;
-  $('share-copy').textContent = 'リンクをコピー';
+  $('share-copy').textContent = t('share.copy');
 }
 $('share-native').addEventListener('click', () => {
-  shareNative({ title: '暴走新幹線', text: shareText, url: SHARE_URL });
+  shareNative({ title: t('share.appTitle'), text: shareText, url: SHARE_URL, dialogTitle: t('share.title') });
 });
 $('share-copy').addEventListener('click', () => {
   const text = $('share-text').value;
-  const done = () => { $('share-copy').textContent = 'コピーしました'; };
-  const fallback = () => { $('share-text').select(); try { document.execCommand('copy'); done(); } catch { $('share-copy').textContent = '文章を選択しました'; } };
+  const done = () => { $('share-copy').textContent = t('share.copied'); };
+  const fallback = () => { $('share-text').select(); try { document.execCommand('copy'); done(); } catch { $('share-copy').textContent = t('share.selected'); } };
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
   else fallback();
 });
@@ -825,7 +851,7 @@ function frame(now) {
     const have = world.chunks.size;
     $('countdown').hidden = false;
     $('countdown').style.fontSize = '28px';
-    $('countdown').textContent = `線路を敷設中… ${Math.min(100, Math.round((have / total) * 100))}%`;
+    $('countdown').textContent = t('cd.loading', { p: Math.min(100, Math.round((have / total) * 100)) });
     if (world.ready(P.km)) {
       $('countdown').style.fontSize = '';
       state = 'countdown';
@@ -835,11 +861,11 @@ function frame(now) {
       const st = STATIONS[course.from];
       if (resumed) {
         const near = STATIONS.reduce((a, b) => (Math.abs(b.km - P.km) < Math.abs(a.km - P.km) ? b : a));
-        telop(`${STATIONS[course.to].name}ゆき　${P.km.toFixed(1)}km から`, '運転再開', `near ${near.en}`);
-        sound.say(`お待たせしました。${STATIONS[course.to].kana}ゆき、運転を再開します`);
+        telop(t('telop.resume', { to: stationName(STATIONS[course.to]), km: P.km.toFixed(1) }), t('telop.resumeMain'), getLang() === 'en' ? `${near.name}付近` : `near ${near.en}`);
+        sound.say(t('voice.resume', { kana: STATIONS[course.to].kana, name: STATIONS[course.to].en }), voiceLang());
       } else {
-        telop(`${STATIONS[course.to].name}ゆき　暴走新幹線`, `${st.name} 出発`, st.en);
-        sound.say(`この電車は、暴走新幹線、${STATIONS[course.to].kana}ゆきです`);
+        telop(t('telop.depart', { to: stationName(STATIONS[course.to]) }), t('telop.departMain', { st: stationName(st) }), getLang() === 'en' ? st.name : st.en);
+        sound.say(t('voice.depart', { kana: STATIONS[course.to].kana, name: STATIONS[course.to].en }), voiceLang());
       }
     }
     updateCamera(dt);
@@ -852,7 +878,7 @@ function frame(now) {
   if (state === 'countdown') {
     countT -= dt;
     const n = Math.ceil(countT - 0.6);
-    $('countdown').textContent = $('countdown').textContent === '再出発!' && countT > 0.6 ? '再出発!' : n > 0 ? String(n) : '出発進行!';
+    $('countdown').textContent = $('countdown').textContent === t('cd.restart') && countT > 0.6 ? t('cd.restart') : n > 0 ? String(n) : t('cd.depart');
     if (countT <= 0) { $('countdown').hidden = true; state = 'run'; }
     traffic.update(simDt, P.km);
   } else if (state === 'run') {
@@ -892,7 +918,7 @@ function frame(now) {
       const closing = onc ? (P.v + 300) / 3600 : (P.v - 300) / 3600;
       const tti = closing > 0 ? ln.dist / closing : 99;
       if (tti < 9 && ln.dist < 4) {
-        if (alertTimer <= 0) { $('alert').textContent = onc ? '⚠ 対向列車接近!' : '⚠ のぞみ接近!'; $('alert').className = 'show'; }
+        if (alertTimer <= 0) { $('alert').textContent = onc ? t('alert.onc') : t('alert.ahead'); $('alert').className = 'show'; }
         if (warnCool <= 0) { sound.warn(); warnCool = tti < 4 ? 0.4 : 1.0; }
       } else if (alertTimer <= 0) $('alert').className = '';
     } else if (alertTimer <= 0) $('alert').className = '';
@@ -905,7 +931,7 @@ function frame(now) {
     $('announce').textContent = '🎙 ' + a.text;
     $('announce').className = 'show';
     annTimer = 3.2;
-    if (a.voice) sound.say(a.voice);
+    if (a.voice) sound.say(a.voice, voiceLang());
   }
   hudT -= dt;
   if (hudT <= 0 && !$('hud').hidden) { updateHud(); hudT = 1 / 20; }
@@ -927,6 +953,18 @@ function renderTitle(dt) {
   updateCamera(dt);
   updateEnvironment(dt);
 }
+
+// 表示言語
+function refreshLang() {
+  applyLang();
+  labelStations();
+  labelMinimap();
+  loadBest();
+  showContinue();
+}
+document.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
+onLangChange(refreshLang);
+refreshLang();
 
 window.__dbg = { P, traffic, world, camera, get state() { return state; } };
 requestAnimationFrame(frame);
