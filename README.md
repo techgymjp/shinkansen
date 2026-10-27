@@ -79,6 +79,18 @@ npm run android:open
 
 本番の広告は、Google Play 用のビルド（`ADMOB_MODE=production`）のときだけ使います。動作確認用 APK はいつもテスト広告です。`UNITS.production` が空の種類は、本番ビルドでもテスト広告になります。
 
+## iOS 版
+
+Android 版と同じ Capacitor のプロジェクトに `ios/` を足して作っています（JET STRIKE と同じ構成）。Bundle ID は `jp.techgym.shinkansen` です。
+
+- iPhone 専用（iPad では iPhone 用の画面で動く）。縦画面・横画面のどちらでも遊べる
+- 英語の端末ではアプリ名が「Runaway Shinkansen」
+- 広告は Android と同じ出し方。起動時に Google の同意確認のあと、App Tracking Transparency の確認を出す
+- AdMob の iOS 用 ID：`ios/App/App/Info.plist` の `GADApplicationIdentifier`（アプリ ID）と `js/ads.js` の `UNITS.ios.production`（広告ユニット ID）
+- GitHub Actions（`.github/workflows/ios.yml`）で、push のたびに署名なしでビルドできるかを確認する
+- ビルドと App Store への提出は Mac で行う：手順は [docs/IOS_BUILD.md](docs/IOS_BUILD.md)
+- App Store 用の画像：`docs/store/ios/`（スクリーンショット 2622×1206 日英各 4 枚、ヘッダ 3840×1646、検索結果 3840×2560）
+
 ## 再現しているもの
 
 | 要素 | データの出どころ |
@@ -115,6 +127,7 @@ js/i18n.js          日本語 / 英語の表示文言と、名所・川・トン
 js/ads.js           AdMob 広告 (Android アプリのみ)
 scripts/build-web.js  www/ へのコピーと ads-config.js / build-info.js の生成
 android/            Capacitor の Android プロジェクト
+ios/                Capacitor の iOS プロジェクト
 assets/             アプリのアイコンと起動画面の元画像
 ```
 
