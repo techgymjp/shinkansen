@@ -1,17 +1,32 @@
-// Google AdMob 広告（Android アプリのときだけ動く。Web 版では何もしない）
+// Google AdMob 広告（Android / iOS アプリのときだけ動く。Web 版では何もしない）
 // 構成は JET STRIKE と同じ: 起動時に同意確認 (UMP)、広告は先読みし、失敗したら少し待って再挑戦する
+// AdMob では Android と iOS を別のアプリとして登録しているので、広告ユニットも OS ごとに分かれている
 const UNITS = {
-  // Google 公式のテスト用広告ユニット
-  test: {
-    banner: 'ca-app-pub-3940256099942544/9214589741',
-    interstitial: 'ca-app-pub-3940256099942544/1033173712',
-    rewarded: 'ca-app-pub-3940256099942544/5224354917',
+  android: {
+    // Google 公式のテスト用広告ユニット
+    test: {
+      banner: 'ca-app-pub-3940256099942544/9214589741',
+      interstitial: 'ca-app-pub-3940256099942544/1033173712',
+      rewarded: 'ca-app-pub-3940256099942544/5224354917',
+    },
+    production: {
+      banner: 'ca-app-pub-6411535997477460/1320325600',
+      interstitial: 'ca-app-pub-6411535997477460/8578375236',
+      rewarded: 'ca-app-pub-6411535997477460/7962675445',
+    },
   },
-  // 本番の広告ユニット (空のものは本番ビルドでもテスト広告を使う)
-  production: {
-    banner: 'ca-app-pub-6411535997477460/1320325600',
-    interstitial: 'ca-app-pub-6411535997477460/8578375236',
-    rewarded: 'ca-app-pub-6411535997477460/7962675445',
+  ios: {
+    test: {
+      banner: 'ca-app-pub-3940256099942544/2934735716',
+      interstitial: 'ca-app-pub-3940256099942544/4411468910',
+      rewarded: 'ca-app-pub-3940256099942544/1712485313',
+    },
+    // iOS 用の本番 ID (AdMob で作成したら入れる。空のものは本番ビルドでもテスト広告を使う)
+    production: {
+      banner: '',
+      interstitial: '',
+      rewarded: '',
+    },
   },
 };
 const RETRY_MS = 20000; // 読み込みに失敗したら少し待って再挑戦する
@@ -19,11 +34,12 @@ const RETRY_MS = 20000; // 読み込みに失敗したら少し待って再挑�
 const cap = window.Capacitor;
 const native = !!(cap && cap.isNativePlatform && cap.isNativePlatform());
 const AdMob = native && cap.Plugins ? cap.Plugins.AdMob : null;
+const platform = native && cap.getPlatform() === 'ios' ? 'ios' : 'android';
 // 広告の種類ごとに、本番 ID があり本番ビルドのときだけ本番の広告を使う
 const productionBuild = window.AD_MODE === 'production';
 const unit = (kind) => {
-  const prod = productionBuild && UNITS.production[kind];
-  return { adId: prod || UNITS.test[kind], isTesting: !prod };
+  const prod = productionBuild && UNITS[platform].production[kind];
+  return { adId: prod || UNITS[platform].test[kind], isTesting: !prod };
 };
 const testing = !productionBuild;
 
@@ -79,6 +95,14 @@ async function init() {
     privacyRequired = consent.privacyOptionsRequirementStatus === 'REQUIRED';
   } catch (e) {
     ready = true;
+  }
+  // iOS では、広告用の ID を使ってよいか (App Tracking Transparency) を利用者に確認する。
+  // 同意確認のあとに一度だけ出る。断られても広告は出せる (パーソナライズされないだけ)
+  if (platform === 'ios') {
+    try {
+      const { status } = await AdMob.trackingAuthorizationStatus();
+      if (status === 'notDetermined') await AdMob.requestTrackingAuthorization();
+    } catch (e) { /* 確認できなくても続ける */ }
   }
   let rewarded = false;
   AdMob.addListener('interstitialAdDismissed', () => finish('inter'));

@@ -177,7 +177,7 @@ export class Sound {
   }
 
   // 車内放送 (音声合成)
-  // Android アプリの WebView はブラウザの音声合成に対応していないので、端末の読み上げ機能 (TTS) を使う
+  // アプリの WebView (Android) はブラウザの音声合成に対応していないので、アプリでは端末の読み上げ機能 (TTS) を使う
   get nativeTts() {
     const cap = window.Capacitor;
     return cap && cap.isNativePlatform && cap.isNativePlatform() && cap.Plugins ? cap.Plugins.TextToSpeech : null;

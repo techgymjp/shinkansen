@@ -1,9 +1,9 @@
-// Android アプリ (Capacitor) のネイティブ機能。Web 版では Capacitor がないので何もしない
+// Android / iOS アプリ (Capacitor) のネイティブ機能。Web 版では Capacitor がないので何もしない
 const cap = window.Capacitor;
 export const isNative = !!(cap && cap.isNativePlatform && cap.isNativePlatform());
 const plugins = isNative && cap.Plugins ? cap.Plugins : {};
 
-// 戻るボタン
+// 戻るボタン (Android のみ。iOS には戻るボタンがないので呼ばれない)
 export function onBackButton(handler) {
   if (plugins.App) plugins.App.addListener('backButton', handler);
 }
@@ -12,7 +12,7 @@ export function exitApp() {
   if (plugins.App) plugins.App.exitApp();
 }
 
-// Android の共有メニューを出す。使えなければ false
+// Android / iOS の共有メニューを出す。使えなければ false
 export async function shareNative({ title, text, url, dialogTitle }) {
   if (plugins.Share) {
     try {

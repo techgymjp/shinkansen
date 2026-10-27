@@ -1,0 +1,4 @@
+/* ホーム画面のアプリ名 (英語の端末) */
+"CFBundleDisplayName" = "Runaway Shinkansen";
+/* App Tracking Transparency prompt */
+"NSUserTrackingUsageDescription" = "This identifier is used to show you more relevant ads. The game is free thanks to ads.";
