@@ -24,7 +24,7 @@ const UNITS = {
     // iOS 用の本番 ID (AdMob で作成したら入れる。空のものは本番ビルドでもテスト広告を使う)
     production: {
       banner: 'ca-app-pub-6411535997477460/3552032424',
-      interstitial: '',
+      interstitial: 'ca-app-pub-6411535997477460/3663501034',
       rewarded: '',
     },
   },
