@@ -21,11 +21,10 @@ const UNITS = {
       interstitial: 'ca-app-pub-3940256099942544/4411468910',
       rewarded: 'ca-app-pub-3940256099942544/1712485313',
     },
-    // iOS 用の本番 ID (AdMob で作成したら入れる。空のものは本番ビルドでもテスト広告を使う)
     production: {
       banner: 'ca-app-pub-6411535997477460/3552032424',
       interstitial: 'ca-app-pub-6411535997477460/3663501034',
-      rewarded: '',
+      rewarded: 'ca-app-pub-6411535997477460/6604524994',
     },
   },
 };
