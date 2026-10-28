@@ -192,7 +192,12 @@ JET STRIKE と同じく、push するだけで GitHub Actions がビルドして
 | `ASC_ISSUER_ID` | Issuer ID |
 | `ASC_KEY_P8_BASE64` | API キー（.p8）を `base64 -i AuthKey_XXXXXXXXXX.p8 \| tr -d '\n' \| pbcopy` で変換した文字列 |
 
-登録が終わったら、Claude Code に「iOS の自動アップロードのワークフローを作って」と頼みます。
+登録が済んだので、自動アップロードのワークフロー（`.github/workflows/ios-release.yml`）が動きます。
+
+- 既定ブランチに push するたびに、本番広告の設定でビルドし、TestFlight にアップロードします（Actions の「iOS TestFlight upload」）
+- ビルド番号は「100 + 実行回数」で自動で上がります（Mac から手動でアップロードした 1, 2… とぶつからないようにするため）
+- 手動で実行するときは Actions → iOS TestFlight upload → Run workflow
+- アップロードから TestFlight に出るまで 10〜30 分ほどかかります。審査への提出は、これまでどおり App Store Connect で行います（6 章）
 
 **注意**：証明書（.p12）、そのパスワード、API キー（.p8）は、チャット・AI へのアップロード・リポジトリへのコミットで**絶対に共有しない**でください。
 

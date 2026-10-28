@@ -1,0 +1,59 @@
+Runaway Shinkansen - App Store listing (English / U.S.)
+
+[Name] (max 30)
+Runaway Shinkansen
+
+[Subtitle] (max 30)
+Brakeless bullet train race
+
+[Promotional Text] (max 170)
+A bullet train with no brakes! Overtake the Nozomi, dodge oncoming trains and race 1,069 km from Tokyo to Hakata at up to 603 km/h on the real line.
+
+[Keywords (comma separated)] (max 100)
+shinkansen,bullet train,train,railway,simulator,driving,japan,tokyo,racing,nozomi,fuji,3d,driver
+
+[Description] (max 4000)
+A bullet train with no brakes. Tokyo to Hakata. How fast can you make it?
+
+Your top speed is 603 km/h. When you catch up with the 300 km/h Nozomi ahead, switch to the other track — but that's the up line, where oncoming trains are heading straight for you. Miss your timing and KABOOM!
+You can crash as many times as you like and still reach Hakata, but every crash puts you back at 0 km/h.
+
+■ RIDE THE REAL TOKAIDO & SANYO SHINKANSEN
+• Track curves and station locations recreated from official Japanese government railway data
+• 1,069.1 km from Tokyo to Hakata, with all 35 stations at their real distances
+• A station name banner every time you blast through a station
+• Long tunnels like Shin-Tanna, Rokko and Shin-Kanmon, and big river bridges
+• Thunder through the steel truss bridges over the Kiso, Nagara and Ibi rivers
+
+■ SIGHTS OUT THE WINDOW
+• Mt. Fuji, Tokyo Tower, and the castles of Odawara, Nagoya, Himeji, Hiroshima and Kokura
+• Five-story pagodas at Toji and Bitchu Kokubunji, temples, and ancient keyhole-shaped burial mounds (kofun)
+• Sagami Bay, Suruga Bay, Lake Hamana and the Seto Inland Sea, rice paddies, tea fields, towns and mountains
+• The conductor announces the sights: "Mt. Fuji on the right"
+• Watch from the driver's cab, or look out the left and right windows
+
+■ RULES OF THE RUNAWAY
+• No brakes. Let go of the throttle and you coast down slowly — but your time suffers
+• The yellow "⇄" signal marks a track switch. Tap left or right just before it
+• Every crash adds a 3-minute penalty
+• Two records: Time, and No-Crash for runs with zero crashes
+• Overtake at full throttle and a crash-free run to Hakata is within reach
+
+■ FEATURES
+• Pick any start and end station
+• Play in real time or at up to 8× speed
+• Save mid-run and continue later
+• Share your result with friends
+• Plays offline (ads and sharing need a connection)
+• English and Japanese
+
+All aboard — departure!
+
+[Support URL]
+https://techgym.jp/column/claude-code-game-shinkansen/
+
+[Privacy Policy URL]
+https://techgym.jp/privacy-policy/
+
+[Copyright]
+© 2026 Techgym Inc.
