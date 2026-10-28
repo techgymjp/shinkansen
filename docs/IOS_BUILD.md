@@ -25,7 +25,7 @@
    - プラットフォーム：iOS ／ 名前：`暴走新幹線` ／ プライマリ言語：日本語
    - バンドル ID：1 で登録した `jp.techgym.shinkansen` ／ SKU：`shinkansen`（あとから変更不可）／ ユーザアクセス：アクセス制限なし
 3. **AdMob** で iOS 用のアプリを追加し（「ストアに掲載されていない」で登録）、バナー・インタースティシャル・リワードの広告ユニットを作る。アプリ ID と広告ユニット ID 3 つを Claude Code に渡す
-   - 渡した ID は `ios/App/App/Info.plist` の `GADApplicationIdentifier` と、`js/ads.js` の `UNITS.ios.production` に入ります。**入るまではテスト用の ID のままです**（本番ビルドでもテスト広告になります）
+   - ID は `ios/App/App/Info.plist` の `GADApplicationIdentifier` と、`js/ads.js` の `UNITS.ios.production` に入っています（設定済み）。広告ユニットを作り直したら、新しい ID に入れ替える
    - 「プライバシーとメッセージ」→「欧州の規制」のメッセージに iOS アプリも追加する
 
 ---

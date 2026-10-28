@@ -75,9 +75,9 @@ npm run android:open
 ### 広告 ID
 
 - アプリ ID: `android/app/src/main/res/values/strings.xml` の `admob_app_id`
-- 広告ユニット ID: `js/ads.js` の `UNITS.production`（バナー・インタースティシャル・リワード）
+- 広告ユニット ID: `js/ads.js` の `UNITS.android.production`（バナー・インタースティシャル・リワード）
 
-本番の広告は、Google Play 用のビルド（`ADMOB_MODE=production`）のときだけ使います。動作確認用 APK はいつもテスト広告です。`UNITS.production` が空の種類は、本番ビルドでもテスト広告になります。
+本番の広告は、Google Play / App Store 用のビルド（`ADMOB_MODE=production`）のときだけ使います。動作確認用 APK はいつもテスト広告です。
 
 ## iOS 版
 
@@ -122,9 +122,9 @@ js/effects.js       大爆発エフェクト
 tools/              線路データ生成スクリプトと名所の座標
 vendor/             three.js r160 (MIT License)
 fonts/              数字用フォント DotGothic16 (SIL Open Font License)
-js/native.js        Android アプリのネイティブ機能 (戻るボタン・共有)
+js/native.js        Android / iOS アプリのネイティブ機能 (戻るボタン・共有)
 js/i18n.js          日本語 / 英語の表示文言と、名所・川・トンネルの英語名
-js/ads.js           AdMob 広告 (Android アプリのみ)
+js/ads.js           AdMob 広告 (Android / iOS アプリのみ)
 scripts/build-web.js  www/ へのコピーと ads-config.js / build-info.js の生成
 android/            Capacitor の Android プロジェクト
 ios/                Capacitor の iOS プロジェクト
