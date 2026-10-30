@@ -289,6 +289,8 @@ for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) tAccel.addEvent
 $('t-left').addEventListener('pointerdown', (e) => { requestLane(1); e.preventDefault(); });
 $('t-right').addEventListener('pointerdown', (e) => { requestLane(-1); e.preventDefault(); });
 document.querySelectorAll('#viewtabs button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+// アプリの中では Google Play へのリンクを出さない
+$('store-link').hidden = isNative;
 const isTouch = matchMedia('(pointer: coarse)').matches || isNative;
 document.body.classList.toggle('touchmode', isTouch);
 
