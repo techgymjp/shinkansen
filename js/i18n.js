@@ -23,8 +23,10 @@ const dict = {
     'legal.privacy': 'プライバシーポリシー',
     'legal.adSettings': '広告の設定',
     'url.privacy': 'https://techgym.jp/privacy-policy/',
+    // web-only:start
     'store.android': 'Android アプリ版（Google Play）',
     'url.play': 'https://play.google.com/store/apps/details?id=jp.techgym.shinkansen&hl=ja',
+    // web-only:end
     'best.prefix': 'この区間の記録: ',
     'best.time': 'タイム部門 {t}（大爆発 {n}回）',
     'best.clean': '無事故部門 {t}',
@@ -101,8 +103,10 @@ const dict = {
     'legal.privacy': 'Privacy Policy',
     'legal.adSettings': 'Ad settings',
     'url.privacy': 'https://techgym.jp/privacy-policy-en/',
+    // web-only:start
     'store.android': 'Get the Android app (Google Play)',
     'url.play': 'https://play.google.com/store/apps/details?id=jp.techgym.shinkansen&hl=en',
+    // web-only:end
     'best.prefix': 'Records for this route: ',
     'best.time': 'Time {t} ({n} crashes)',
     'best.clean': 'No-Crash {t}',

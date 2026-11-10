@@ -34,7 +34,7 @@ GitHub Pages などにそのまま置いても動きます。
 
 JET STRIKE（techgymjp/jet-fighter）と同じ構成で、Capacitor を使って Android アプリにしています。パッケージ名は `jp.techgym.shinkansen` です。
 
-- ゲームのファイルはアプリに同梱し、オフラインでも遊べます（`npm run build` で `www/` にコピー）
+- ゲームのファイルはアプリに同梱し、オフラインでも遊べます（`npm run build:app` で `www/` にコピー。Google Play へのリンクなど Web 版だけの部分は取り除く）
 - 縦画面・横画面のどちらでも遊べる（端末の自動回転の設定に従う）。システムバーを隠した全画面、プレイ中は画面を消さない
 - 戻るボタン: プレイ中は一時停止、一時停止中は再開、タイトルと結果画面ではアプリを終了
 - 別のアプリに切り替えると自動で一時停止し、音を止める
@@ -52,7 +52,7 @@ JET STRIKE（techgymjp/jet-fighter）と同じ構成で、Capacitor を使って
 
 クラウドの Claude Code からは Android SDK を入れられないので、ビルドは GitHub Actions（`.github/workflows/android.yml`）で行います。
 
-1. `npm ci` → `npm run build` → `npx cap sync android` → `./gradlew assembleDebug`
+1. `npm ci` → `npm run build:app` → `npx cap sync android` → `./gradlew assembleDebug`
 2. 既定ブランチのビルドは、動作確認用 APK（テスト広告）を Release `android-latest` に載せます
    - ダウンロード: `https://github.com/techgymjp/shinkansen/releases/latest/download/bousou-shinkansen.apk`
 

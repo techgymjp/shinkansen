@@ -237,11 +237,9 @@ function startGame(resume) {
   }
   timeScale = +$('sel-scale').value;
   course = { from, to, startKm: STATIONS[from].km, goalKm: STATIONS[to].km };
-  const q = new URLSearchParams(location.search);
-  const dbgStart = parseFloat(q.get('start'));
   sound.init();
   sound.voice = $('chk-voice').checked;
-  Object.assign(P, { km: isNaN(dbgStart) ? course.startKm : dbgStart, v: +(q.get('speed') || 0), lat: LANE_OFF, accel: false, pending: null, changing: null, booms: 0, time: 0, passed: 0, maxV: 0, rewardUsed: false });
+  Object.assign(P, { km: isNaN(DBG.start) ? course.startKm : DBG.start, v: DBG.speed, lat: LANE_OFF, accel: false, pending: null, changing: null, booms: 0, time: 0, passed: 0, maxV: 0, rewardUsed: false });
   // 続きから: 位置と記録を戻し、速度0から再出発 (周りの列車は配置し直す)
   if (resume) Object.assign(P, { km: resume.km, v: 0, booms: resume.booms, time: resume.time, passed: resume.passed, maxV: resume.maxV });
   resumed = !!resume;
@@ -289,8 +287,16 @@ for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) tAccel.addEvent
 $('t-left').addEventListener('pointerdown', (e) => { requestLane(1); e.preventDefault(); });
 $('t-right').addEventListener('pointerdown', (e) => { requestLane(-1); e.preventDefault(); });
 document.querySelectorAll('#viewtabs button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
-// アプリの中では Google Play へのリンクを出さない
-$('store-link').hidden = isNative;
+// 撮影・確認用: ?start=km&speed=km/h で途中から走る (記録は残さない)。Web 版だけ
+const DBG = { start: NaN, speed: 0, run: false };
+// web-only:start
+{
+  const q = new URLSearchParams(location.search);
+  DBG.start = parseFloat(q.get('start'));
+  DBG.speed = +(q.get('speed') || 0);
+  DBG.run = q.has('start') || q.has('speed');
+}
+// web-only:end
 const isTouch = matchMedia('(pointer: coarse)').matches || isNative;
 document.body.classList.toggle('touchmode', isTouch);
 
@@ -732,7 +738,7 @@ function finish() {
   telop(t('telop.arrive', { t: fmtTime(totalTime()), n: P.booms }), t('telop.arriveMain', { st: stationName(st) }), getLang() === 'en' ? st.name : st.en);
   sound.chime();
   sound.say(t('voice.arrive', { kana: st.kana, name: st.en }), voiceLang());
-  const debugRun = /[?&](start|speed)=/.test(location.search);
+  const debugRun = DBG.run;
   const total = totalTime();
   const recT = readRecord('time'), recC = readRecord('clean');
   const newT = !debugRun && (!recT || total < recT.time);
@@ -1002,5 +1008,7 @@ document.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('clic
 onLangChange(refreshLang);
 refreshLang();
 
+// web-only:start
 window.__dbg = { P, traffic, world, camera, get state() { return state; } };
+// web-only:end
 requestAnimationFrame(frame);

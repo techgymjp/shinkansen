@@ -62,7 +62,7 @@ jobs:
       - name: Copy web assets into the iOS project (production ads)
         if: env.HAS_SECRETS == 'true'
         run: |
-          ADMOB_MODE=production npm run build
+          ADMOB_MODE=production npm run build:app
           npx cap sync ios
 
       # 配布用証明書を、このジョブだけの一時キーチェーンに入れる
