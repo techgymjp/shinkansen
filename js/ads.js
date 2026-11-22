@@ -23,7 +23,7 @@ const UNITS = {
     },
     production: {
       banner: 'ca-app-pub-6411535997477460/9995637331',
-      interstitial: 'ca-app-pub-6411535997477460/3663501034',
+      interstitial: 'ca-app-pub-6411535997477460/4304326952',
       rewarded: 'ca-app-pub-6411535997477460/6604524994',
     },
   },
