@@ -188,7 +188,7 @@ function clearSave() {
   try { localStorage.removeItem(SAVE_KEY); } catch {}
 }
 function saveGame() {
-  if (!PLAYING.includes(state) || /[?&](start|speed)=/.test(location.search)) return;
+  if (!PLAYING.includes(state) || DBG.run) return;
   const data = {
     v: 1, from: course.from, to: course.to, scale: timeScale, voice: sound.voice,
     km: P.km, time: P.time, booms: P.booms, passed: P.passed, maxV: P.maxV, savedAt: Date.now(),
@@ -775,15 +775,17 @@ function setupShare(goalName, total) {
   const from = stationName(STATIONS[course.from]);
   const boom = P.booms === 0 ? t('share.boomZero') : t('share.boomN', { n: P.booms });
   shareText = t('share.text', { from, to: goalName, km: (course.goalKm - course.startKm).toFixed(1), t: fmtTime(total), boom, v: Math.round(P.maxV) });
+  // web-only:start
   const txt = encodeURIComponent(shareText), u = encodeURIComponent(SHARE_URL);
   $('share-x').href = `https://twitter.com/intent/tweet?text=${txt}&url=${u}`;
   $('share-line').href = `https://social-plugins.line.me/lineit/share?url=${u}&text=${txt}`;
   $('share-fb').href = `https://www.facebook.com/sharer/sharer.php?u=${u}`;
+  for (const id of ['share-x', 'share-line', 'share-fb']) $(id).hidden = isNative;
+  // web-only:end
   $('share-text').value = `${shareText} ${SHARE_URL}`;
-  // アプリでは Android の共有メニューを使う
+  // アプリでは端末の共有メニューを使う
   $('share-native').hidden = !canShareNative();
   $('share-native').textContent = isNative ? t('share.native') : t('share.other');
-  for (const id of ['share-x', 'share-line', 'share-fb']) $(id).hidden = isNative;
   $('share-copy').textContent = t('share.copy');
 }
 $('share-native').addEventListener('click', () => {

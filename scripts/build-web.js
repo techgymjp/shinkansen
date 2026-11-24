@@ -20,7 +20,7 @@ if (appBuild) {
     /[ \t]*\/\/ web-only:start[\s\S]*?\/\/ web-only:end[ \t]*\n?/g,
     /[ \t]*\/\* web-only:start \*\/[\s\S]*?\/\* web-only:end \*\/[ \t]*\n?/g,
   ];
-  const FORBIDDEN = ['play.google.com', 'web-only', '__dbg'];
+  const FORBIDDEN = ['play.google.com', 'web-only', '__dbg', 'location.search', 'twitter.com', 'line.me', 'facebook.com'];
   const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? (e.name === 'vendor' ? [] : walk(path.join(dir, e.name))) : [path.join(dir, e.name)]);
   for (const file of walk(out).filter((f) => /\.(html|js|css)$/.test(f))) {
