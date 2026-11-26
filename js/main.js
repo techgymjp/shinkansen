@@ -6,7 +6,7 @@ import {
 } from './route.js';
 import { WATER } from './scenery-data.js';
 import { World, LANE_OFF, RAIL_Y } from './world.js';
-import { Traffic, CROSS_WINDOW } from './trains.js';
+import { Traffic, CROSS_WINDOW, TRAIN_KM } from './trains.js';
 import { Sound } from './audio.js';
 import { Explosion } from './effects.js';
 import { canvasTex } from './models.js';
@@ -340,6 +340,39 @@ function togglePause() {
   else if (['run', 'countdown', 'crash'].includes(state)) { pausedFrom = state; state = 'pause'; $('pause').hidden = false; sound.update(0, false, 0); }
 }
 
+// 移った先で避けられない衝突になる切り替えは受け付けない
+// (指令所は、のぞみの最後尾に近づいてから移る前提で対向列車を出しているため、早めに移ると間に合わないことがある)
+const SAFE_AFTER_CROSS = 1.5; // 移り終えてから対向列車とすれ違うまでに必要な距離 (km)
+function laneBlocked(c, toSign) {
+  const vs = Math.max(P.v, 1) / 3600; // km/s
+  const endKm = c.km + c.len;
+  for (const tr of traffic.trains) {
+    if (Math.sign(tr.lane) !== toSign) continue;
+    if (tr.dir < 0) {
+      const tv = tr.held ? 0 : -tr.v; // km/s (対向列車の v は負)
+      const tail = tr.s + TRAIN_KM;
+      if (tail < P.km - 0.02) continue; // もうすれ違った
+      if (tr.s >= P.km) {
+        const meetKm = P.km + vs * (tr.s - P.km) / (vs + tv);
+        if (meetKm < endKm + SAFE_AFTER_CROSS) return 'onc';
+      } else {
+        // いま横ですれ違っている最中
+        const clearKm = P.km + vs * (tail - P.km) / (vs + tv);
+        if (clearKm > c.km - 0.05) return 'onc';
+      }
+    } else {
+      // 渡っている間に、同じ向きの列車と横に並ぶ
+      for (let i = 0; i <= 4; i++) {
+        const x = P.km + (endKm - P.km) * i / 4;
+        const tt = (x - P.km) / vs;
+        const head = tr.s + (tr.held ? 0 : tr.v) * tt;
+        if (x >= head - TRAIN_KM - 0.05 && x <= head + 0.05) return 'side';
+      }
+    }
+  }
+  return null;
+}
+
 const laneSign = () => (P.changing ? P.changing.toSign : P.pending ? P.pending.toSign : Math.sign(P.lat));
 function requestLane(toSign) {
   if (state !== 'run') return;
@@ -352,6 +385,12 @@ function requestLane(toSign) {
     return;
   }
   if (d < -0.06) { flashAlert(t('alert.late'), false, 700); return; }
+  const block = laneBlocked(c, toSign);
+  if (block) {
+    flashAlert(t(block === 'onc' ? 'alert.onc' : 'alert.side'), false, 1200);
+    sound.warn();
+    return;
+  }
   P.pending = { c, toSign };
   flashAlert(toSign < 0 ? t('alert.toUp') : t('alert.toDown'), true, 900);
 }
